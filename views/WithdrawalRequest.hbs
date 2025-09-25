@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Withdrawal Request Confirmation</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f8f9fa;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 30px auto;
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 20px;
+    }
+    h2 {
+      color: #2d89ef;
+      margin-bottom: 15px;
+    }
+    p {
+      font-size: 15px;
+      color: #333333;
+      line-height: 1.6;
+    }
+    .details {
+      background: #f1f1f1;
+      border-radius: 6px;
+      padding: 15px;
+      margin: 20px 0;
+    }
+    .details p {
+      margin: 5px 0;
+      font-size: 14px;
+    }
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      color: #777;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Withdrawal Request Received ✅</h2>
+    <p>Hello <strong>{{accountName}}</strong>,</p>
+    <p>We’ve received your withdrawal request. Our team is currently processing it, and we’ll notify you once it has been completed.</p>
+
+    <div class="details">
+      <p><strong>Bank Name:</strong> {{bankName}}</p>
+      <p><strong>Account Number:</strong> {{accountNumber}}</p>
+      <p><strong>Amount:</strong> ₦{{amount}}</p>
+    </div>
+
+    <p>Thank you for trusting us. We’ll be in touch soon!</p>
+
+    <div class="footer">
+      <p>© 2025 Pay2view. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
