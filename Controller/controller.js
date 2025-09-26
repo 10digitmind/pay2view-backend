@@ -199,11 +199,11 @@ const loginUser = async (req, res) => {
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
-      return res.status(401).json({ message: "Invalid password" });
+      return res.status(401).json({ message: "Invalid email or  password" });
     }
 
-    const token = jwt.sign(
-      { id: user._id, email: user.email },
+    const token = jwt.sign( 
+      { id: user._id, email: user.email }, 
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
@@ -407,7 +407,7 @@ const initialisePayment = asyncHandler(async (req, res) => {
       "https://api.paystack.co/transaction/initialize",
       {
         email: buyerEmail,
-        amount: finalAmount,
+        amount: finalAmount*100,
         metadata,
       },
       {
@@ -547,17 +547,20 @@ if (!mongoose.Types.ObjectId.isValid(contentId)) {
     const contentTitle = content.title;
     const amount = transaction.amount / 100;
     const creator = await User.findById(content.creator._id);
-    const creatorName = creator.name || creator.email.split("@")[0];
+    const creatorName = creator.username || creator.email.split("@")[0];
+    const userEmail = creator.email
     const dashboardUrl =
       process.env.FRONTEND_URL?.replace(/\/$/, "") + "/dashboard";
 
+
     await sendPaymentAlertToCreator(
-      creator.email,
-      contentTitle,
-      amount,
+      userEmail,
       creatorName,
+        contentTitle,
+      amount,
       dashboardUrl
     );
+
     await sendPaymentAlertToBuyer(buyerEmail, buyerName, contentUrl, contentTitle);
 
     // 8️⃣ Return response
@@ -792,7 +795,7 @@ const userEmail = user.email
 
     await withdrawal.save()
 
-    await  sendWithdrawalEmail(bankName, accountName, accountNumber, amount,userEmail)
+    await  sendWithdrawalEmail(accountName, bankName, accountNumber, amount,userEmail)
     res.status(201).json({
       message: "Withdrawal request submitted successfully",
       withdrawal,
@@ -840,7 +843,7 @@ const updateUserProfile = async (req, res) => {
     }
 
     const updatedUser = await User.findByIdAndUpdate(
-      req.user.id,
+      req.user._id,
       {
         ...(fullName && { fullName }),
         ...(username && { username }),
@@ -848,6 +851,8 @@ const updateUserProfile = async (req, res) => {
       },
       { new: true }
     ).select("-passwordHash");
+
+    console.log(updatedUser)
 
     if (!updatedUser) {
       return res.status(404).json({ message: "User not found" });
@@ -862,6 +867,7 @@ const updateUserProfile = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 
 module.exports = {
   getUserContents,
