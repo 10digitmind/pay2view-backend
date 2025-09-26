@@ -13,7 +13,9 @@ app.use(express.urlencoded({ extended: true }));
 const allowedOrigins = [
   'https://pay2view.vercel.app',
   'http://localhost:3000',
-'https://pay2view-backend.onrender.com'
+'https://pay2view-backend.onrender.com',
+'www.pay2view.io'
+
 
 ];
 app.use(cors({
