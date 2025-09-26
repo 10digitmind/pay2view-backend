@@ -14,7 +14,7 @@ const allowedOrigins = [
   'https://pay2view.vercel.app',
   'http://localhost:3000',
 'https://pay2view-backend.onrender.com',
-'www.pay2view.io'
+"https://www.pay2view.io"
 
 
 ];
