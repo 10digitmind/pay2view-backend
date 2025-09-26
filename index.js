@@ -22,6 +22,10 @@ app.use(cors({
 }));
 app.use(groute)
 
+app.get('/', (req, res) => {
+  res.send('Backend is running');
+});
+
 mongoose
   .connect(process.env.MONGO_URL) 
   
