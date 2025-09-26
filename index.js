@@ -12,10 +12,14 @@ const cors = require('cors');
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); 
+const allowedOrigins = [
+  'https://pay2view.vercel.app',
+  'http://localhost:3000'
+];
 app.use(cors({
-  origin: '*'
+  origin: allowedOrigins,
+  credentials: true, // if you need to send cookies or auth headers
 }));
-
 app.use(groute)
 
 mongoose
