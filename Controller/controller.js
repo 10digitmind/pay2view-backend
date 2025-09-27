@@ -297,7 +297,7 @@ if (mimetype === "application/pdf") {
       price: Math.round(parseFloat(price) || 0),
      
     });
- content.shareLink = `${CLIENT_URL}/view-content/${title}/${content._id}`,
+ content.shareLink = `${frontendURL}/view-content/${title}/${content._id}`,
     await content.save();
 
     res.json({ success: true, content });
