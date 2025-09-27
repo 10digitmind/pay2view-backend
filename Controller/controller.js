@@ -6,6 +6,7 @@ const {
   SoldContent,
   Withdrawal,
   Account,
+  DeletedUser
 } = require("../Model/Model"); // your database models
 const bcrypt = require("bcryptjs");
 require("dotenv").config();
@@ -35,6 +36,26 @@ async function getPdfSignedUrl(bucket, key) {
   return await getSignedUrl(r2, command, { expiresIn: 3600 }); // 1 hour
 }
 
+// delete images 
+async function deleteFromCloudflare(imageId) {
+  try {
+    const res = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ID}/images/v1/${imageId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${CLOUDFLARE_API_TOKEN}`,
+        },
+      }
+    );
+    const data = await res.json();
+    if (!data.success) {
+      console.error("Failed to delete from Cloudflare:", data.errors);
+    }
+  } catch (err) {
+    console.error("Cloudflare delete error:", err.message);
+  }
+}
 
 const uploadToCloudflare = async (fileBuffer, filename, mimetype) => {
   const form = new FormData();
@@ -189,7 +210,7 @@ const loginUser = async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "User not found, kindly sign up" });
     }
     if (!user.emailVerified) {
       return res
@@ -869,6 +890,78 @@ const updateUserProfile = async (req, res) => {
 };
 
 
+const deleteUserAccount = async (req, res) => {
+
+  const { userId } = req.params;
+
+  try {
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Delete profile image if exists
+    if (user.profilePic) {
+      await deleteFromCloudflare(user.profilePic);
+    }
+
+    // Get all user contents
+    const contents = await Content.find({ creator: userId });
+
+    // Delete content images from Cloudflare
+// Delete user content (images + PDFs) in parallel
+await Promise.all(
+  contents.map(async (content) => {
+    // Delete image from Cloudflare
+    if (content.cf_image_id) {
+      try {
+        await deleteFromCloudflare(content.cf_image_id);
+        console.log("Deleted image:", content.cf_image_id);
+      } catch (err) {
+        console.warn("Failed to delete image from Cloudflare:", err.message);
+      }
+    }
+
+    // Delete PDF from Cloudflare R2
+    if (content.full_url && content.full_url.endsWith(".pdf")) {
+      try {
+        const url = new URL(content.full_url);
+        const key = decodeURIComponent(url.pathname.slice(1)); // extract object key
+        await r2.send(
+          new DeleteObjectCommand({
+            Bucket: process.env.R2_BUCKET_NAME,
+            Key: key,
+          })
+        );
+        console.log("Deleted PDF from R2:", key);
+      } catch (err) {
+        console.warn("Failed to delete PDF from R2:", err.message);
+      }
+    }
+  })
+);
+
+
+try {
+  await DeletedUser.create({
+    email: user.email,
+    reason: req.body.reason || null,
+  });
+} catch (err) {
+  console.warn("Failed to save deleted user info:", err.message);
+}
+
+ // Delete content records from DB
+    await Content.deleteMany({ creator: userId });
+
+    // Delete user record
+    await User.findByIdAndDelete(userId);
+
+    return res.json({ message: "Account and all content deleted successfully" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Server error" });
+  }
+
+}
 module.exports = {
   getUserContents,
   registerUser,
@@ -886,5 +979,6 @@ module.exports = {
   getUserAccount,
   requestWithdrawal,
   getWithdrawalHistory,
-  updateUserProfile
+  updateUserProfile,
+  deleteUserAccount
 };
