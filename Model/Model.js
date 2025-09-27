@@ -82,10 +82,16 @@ const accountSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+const deletedUserSchema = new mongoose.Schema({
+  email: { type: String, required: true },
+  reason: { type: String },
+  deletedAt: { type: Date, default: Date.now },
+});
 module.exports = {
   User: mongoose.model("User", UserSchema),
   Content: mongoose.model("Content", ContentSchema),
   Withdrawal: mongoose.model("Withdrawal", withdrawalSchema),
   SoldContent: mongoose.model("SoldContent", soldContentSchema),
   Account: mongoose.model("Account", accountSchema),
+  DeletedUser: mongoose.model("DeletedUser", deletedUserSchema)
 };

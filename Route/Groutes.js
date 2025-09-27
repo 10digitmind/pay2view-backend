@@ -17,7 +17,8 @@ const {
   getUserAccount,
   requestWithdrawal,
   getWithdrawalHistory,
-   updateUserProfile
+   updateUserProfile,
+   deleteUserAccount
 } = require("../Controller/controller");
 const { protect } = require("../Middleware/Auth");
 const multer = require("multer");
@@ -52,6 +53,9 @@ router.get("/api/get-user-account", protect,getUserAccount);
 
 router.post("/api/request-withdrawals", protect,requestWithdrawal);
 router.get("/api/get-withdrawal-history", protect,getWithdrawalHistory);
+router.delete("/api/delete-user-account/:userId", protect,deleteUserAccount);
+
+
 
 
 module.exports = router;
