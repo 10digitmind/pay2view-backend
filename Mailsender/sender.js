@@ -76,10 +76,11 @@ async function sendPaymentAlertToCreator(
 }
 
 async function sendPaymentAlertToBuyer(
-  buyerEmail,
+
   buyerName,
   contentTitle,
-  contentUrl
+  contentUrl,
+    buyerEmail,
 ) {
   const transporter = await createTransporter();
 
