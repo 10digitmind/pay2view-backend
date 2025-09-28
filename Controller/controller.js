@@ -15,7 +15,7 @@ const axios = require("axios");
 const sharp = require("sharp");
 const mongoose = require("mongoose");
 const crypto = require("crypto");
-const {sendVerificationEmail, sendPasswordResetEmail, sendPaymentAlertToCreator, sendPaymentAlertToBuyer, sendWithdrawalEmail} = require("../Mailsender/sender");
+const {sendVerificationEmail, sendPasswordResetEmail, sendPaymentAlertToCreator, sendPaymentAlertToBuyer, sendWithdrawalEmail, contactEmail} = require("../Mailsender/sender");
 const { S3Client, PutObjectCommand,GetObjectCommand,DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
@@ -962,6 +962,36 @@ try {
   }
 
 }
+
+
+
+
+
+const contact = async (req, res) => {
+  try {
+    const { fullname, email, subject, message, category } = req.body;
+
+    // Validate input
+    if (!fullname || !email || !subject || !message || !category) {
+      return res.status(400).json({ success: false, error: "All fields are required." });
+    }
+
+    // (Optional) simple email format check
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ success: false, error: "Invalid email address." });
+    }
+
+    // Send email via Nodemailer
+    await contactEmail(fullname, email, subject, message, category);
+
+    return res.status(200).json({ success: true, message: "Message sent successfully." });
+  } catch (error) {
+    console.error("Error sending contact email:", error);
+    return res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
 module.exports = {
   getUserContents,
   registerUser,
@@ -980,5 +1010,6 @@ module.exports = {
   requestWithdrawal,
   getWithdrawalHistory,
   updateUserProfile,
-  deleteUserAccount
+  deleteUserAccount,
+  contact
 };
