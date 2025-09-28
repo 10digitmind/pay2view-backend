@@ -571,7 +571,7 @@ if (!mongoose.Types.ObjectId.isValid(contentId)) {
     const creatorName = creator.username || creator.email.split("@")[0];
     const userEmail = creator.email
     const dashboardUrl =
-      process.env.FRONTEND_URL?.replace(/\/$/, "") + "/dashboard";
+      process.env.CLIENT_URL?.replace(/\/$/, "") + "/dashboard";
 
 
     await sendPaymentAlertToCreator(
@@ -582,7 +582,10 @@ if (!mongoose.Types.ObjectId.isValid(contentId)) {
       dashboardUrl
     );
 
-    await sendPaymentAlertToBuyer(buyerEmail, buyerName, contentUrl, contentTitle);
+    await sendPaymentAlertToBuyer(  buyerName,
+  contentTitle,
+  contentUrl,
+    buyerEmail,);
 
     // 8️⃣ Return response
     res.json({
