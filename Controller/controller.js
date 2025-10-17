@@ -330,7 +330,6 @@ if (mimetype === "application/pdf") {
 
 
 
-
 const getUserContents = async (req, res) => {
   try {
     if (!req.user.id) {
@@ -540,52 +539,57 @@ if (!mongoose.Types.ObjectId.isValid(contentId)) {
     }
 
     // 6️⃣ Check if buyer already purchased
-    const alreadyBought = account.soldContent.some(
-      (sale) =>
-        sale.content.toString() === content._id.toString() &&
-        sale.buyerEmail === buyerEmail
-    );
+  // 6️⃣ Check if buyer already purchased
+let sale = account.soldContent.find(
+  (sale) =>
+    sale.content.toString() === content._id.toString() &&
+    sale.buyerEmail === buyerEmail
+);
 
-    if (!alreadyBought) {
-      account.soldContent.push({
-        content: content._id,
-        buyerEmail,
-        amount: transaction.amount / 100, // Convert from kobo
-        reference: transaction.reference,
-        title:content.title,
-        status:status
-      });
+if (!sale) {
+  // First-time buyer
+  sale = {
+    content: content._id,
+    buyerEmail,
+    amount: transaction.amount / 100,
+    reference: transaction.reference,
+    title: content.title,
+    status: status,
+    notified: false, // 👈 add a flag to track notification status
+  };
 
-      // Update balance only on first purchase
-      account.balance += transaction.amount / 100;
-      content.soldCount += 1;
-      content.viewCount += 1;
+  account.soldContent.push(sale);
+  account.balance += transaction.amount / 100;
+  content.soldCount += 1;
+  content.viewCount += 1;
 
-      await Promise.all([account.save(), content.save()]);
-    }
+  await Promise.all([account.save(), content.save()]);
+}
 
-    // 7️⃣ Notifications
-    const contentTitle = content.title;
-    const amount = transaction.amount / 100;
-    const creator = await User.findById(content.creator._id);
-    const creatorName = creator.username || creator.email.split("@")[0];
-    const userEmail = creator.email
-    const dashboardUrl =
-      process.env.CLIENT_URL?.replace(/\/$/, "") + "/dashboard";
+// 7️⃣ Send notifications only once
+if (!sale.notified) {
+  const contentTitle = content.title;
+  const amount = transaction.amount / 100;
+  const creator = await User.findById(content.creator._id);
+  const creatorName = creator.username || creator.email.split("@")[0];
+  const userEmail = creator.email;
+  const dashboardUrl =
+    process.env.CLIENT_URL?.replace(/\/$/, "") + "/dashboard";
 
+  await sendPaymentAlertToCreator(
+    userEmail,
+    creatorName,
+    contentTitle,
+    amount,
+    dashboardUrl
+  );
 
-    await sendPaymentAlertToCreator(
-      userEmail,
-      creatorName,
-        contentTitle,
-      amount,
-      dashboardUrl
-    );
+  await sendPaymentAlertToBuyer(buyerName, contentTitle, contentUrl, buyerEmail);
 
-    await sendPaymentAlertToBuyer(  buyerName,
-  contentTitle,
-  contentUrl,
-    buyerEmail,);
+  // ✅ Mark as notified
+  sale.notified = true;
+  await account.save();
+}
 
     // 8️⃣ Return response
     res.json({
@@ -608,11 +612,7 @@ if (!mongoose.Types.ObjectId.isValid(contentId)) {
     return res.status(500).json({ error: "Failed to verify payment." });
   }
 });
-
-
-
-
-
+ 
 
 
 const getUserProfile = async (req, res) => {
@@ -965,9 +965,6 @@ try {
   }
 
 }
-
-
-
 
 
 const contact = async (req, res) => {
