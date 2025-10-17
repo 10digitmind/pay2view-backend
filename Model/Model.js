@@ -66,7 +66,8 @@ const soldContentSchema = new mongoose.Schema({
   soldAt: { type: Date, default: Date.now },
   reference: String, 
   title:String,
-  status: { type: String, default: "Pending" }// Paystack transaction reference
+  status: { type: String, default: "Pending" },// Paystack transaction reference
+   notified: { type: Boolean, default: false },
 });
 
 const accountSchema = new mongoose.Schema({
