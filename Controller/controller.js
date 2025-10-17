@@ -594,7 +594,7 @@ if (!sale.notified) {
     // 8️⃣ Return response
     res.json({
       success: true,
-      message: alreadyBought
+      message: sale
         ? "Buyer already purchased this content. Returning content URL."
         : "Payment verified, content unlocked & account updated.",
       contentId,
