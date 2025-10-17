@@ -161,6 +161,33 @@ async function contactEmail(fullname, email, subject, message, category) {
   }
 }
 
+
+
+
+async function signupAlert(name, email,) {
+  const transporter = await createTransporter();
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: "olubodekehinde2019@gmail.com",
+    subject: 'new sign up alert!!',
+    template: "Signupalert", // template name without extension
+
+    context: {
+      name,
+      email,
+    
+    },
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`sign up alert sent to admin`);
+  } catch (err) {
+    console.error("Error sending email:", err);
+  }
+}
+
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetEmail,
@@ -168,4 +195,5 @@ module.exports = {
   sendPaymentAlertToBuyer,
   sendWithdrawalEmail,
   contactEmail,
+  signupAlert
 };

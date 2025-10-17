@@ -15,7 +15,7 @@ const axios = require("axios");
 const sharp = require("sharp");
 const mongoose = require("mongoose");
 const crypto = require("crypto");
-const {sendVerificationEmail, sendPasswordResetEmail, sendPaymentAlertToCreator, sendPaymentAlertToBuyer, sendWithdrawalEmail, contactEmail} = require("../Mailsender/sender");
+const {sendVerificationEmail, sendPasswordResetEmail, sendPaymentAlertToCreator, sendPaymentAlertToBuyer, sendWithdrawalEmail, contactEmail,signupAlert} = require("../Mailsender/sender");
 const { S3Client, PutObjectCommand,GetObjectCommand,DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
@@ -152,6 +152,11 @@ const verifyEmail = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
+
+    let name = user.username
+    let email = user.email
+    
+    await signupAlert(name, email)
 
     // 5️⃣ Send response with token
     res.status(200).json({
