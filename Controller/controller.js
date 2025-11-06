@@ -18,7 +18,7 @@ const crypto = require("crypto");
 const {sendVerificationEmail, sendPasswordResetEmail, sendPaymentAlertToCreator, sendPaymentAlertToBuyer, sendWithdrawalEmail, contactEmail,signupAlert} = require("../Mailsender/sender");
 const { S3Client, PutObjectCommand,GetObjectCommand,DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
-
+const{encrypt,decrypt} = require('../Controller/Encryption')
 const r2 = new S3Client({
   region: "auto",
   endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
@@ -299,7 +299,7 @@ const uploadContent = asyncHandler(async (req, res) => {
         `preview-${originalname}`
       );
 
-      fullUrl = fullRes.variants[0];
+      fullUrl = encrypt(fullRes.variants[0]);;
       previewUrl = previewRes.variants[0];
     }
 
@@ -341,21 +341,38 @@ const getUserContents = async (req, res) => {
       return res.status(404).json({ message: "User not available" });
     }
 
-    const contents = await Content.find({ creator: req.user._id }) // use creator field
-// adjust fields as needed
+    const contents = await Content.find({ creator: req.user._id });
 
     if (!contents || contents.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No content found for this user" });
+      return res.status(404).json({ message: "No content found for this user" });
     }
 
-    res.json({ contents });
+    // 🧠 Decrypt image URLs for this user only (they own the content)
+    const decryptedContents = contents.map((content) => {
+      let fullUrl = content.full_url;
+
+      // Only decrypt if it's an encrypted image (skip PDFs)
+      if (content.title && content.title.endsWith("-image")) {
+        try {
+          fullUrl = decrypt(content.full_url);
+        } catch (err) {
+          console.error(`Failed to decrypt content ID ${content._id}:`, err.message);
+        }
+      }
+
+      return {
+        ...content.toObject(),
+        full_url: fullUrl,
+      };
+    });
+
+    res.json({ contents: decryptedContents });
   } catch (error) {
     console.error("Error fetching user contents:", error.message);
     res.status(500).json({ message: "Server error while fetching contents" });
   }
 };
+
 
 const getContentById = asyncHandler(async (req, res) => {
   const content = await Content.findById(req.params.id);
@@ -461,6 +478,7 @@ const initialisePayment = asyncHandler(async (req, res) => {
 
 
 const verifyPayment = asyncHandler(async (req, res) => {
+  
   const { reference } = req.body;
   if (!reference)
     return res.status(400).json({ error: "Reference is required." });
@@ -478,36 +496,42 @@ const verifyPayment = asyncHandler(async (req, res) => {
     );
 
     const data = response.data;
-let status = data.data.status 
+    const status = data.data.status;
 
-
-    if (data.data.status !== "success") {
+    if (status !== "success") {
       return res.status(400).json({ error: "Payment not successful." });
     }
 
     const transaction = data.data;
     const metadata = transaction.metadata;
-    const contentId = metadata.contentId.toString();
+    const contentId = metadata.contentId?.toString();
 
-
-
-// Validate contentId first
-if (!mongoose.Types.ObjectId.isValid(contentId)) {
-  return res.status(400).json({ error: "Invalid content ID" });
-}
+    if (!mongoose.Types.ObjectId.isValid(contentId)) {
+      return res.status(400).json({ error: "Invalid content ID" });
+    }
 
     // 2️⃣ Mark content as paid
     const content = await Content.findByIdAndUpdate(
       contentId,
       { isPaid: true },
+      { new: true }
     ).populate("creator");
 
     if (!content) return res.status(404).json({ error: "Content not found." });
 
-    // 3️⃣ Generate download URL
+    // 3️⃣ Generate actual download/view URL
     let contentUrl = content.full_url;
 
-    if (content.full_url.endsWith(".pdf")) {
+    if (content.title.endsWith("-image")) {
+      // 🧩 Decrypt image URL for buyer
+      try {
+        contentUrl = decrypt(content.full_url);
+      } catch (err) {
+        console.error("Failed to decrypt image URL:", err.message);
+        return res.status(500).json({ error: "Failed to unlock content." });
+      }
+    } else if (content.full_url.endsWith(".pdf")) {
+      // 📄 Generate signed URL for PDF
       try {
         const url = new URL(content.full_url);
         const key = decodeURIComponent(url.pathname.slice(1));
@@ -520,9 +544,7 @@ if (!mongoose.Types.ObjectId.isValid(contentId)) {
         contentUrl = await getSignedUrl(r2, command, { expiresIn: 3600 }); // 1 hour
       } catch (err) {
         console.error("Failed to generate signed URL:", err);
-        return res
-          .status(500)
-          .json({ error: "Failed to generate download link" });
+        return res.status(500).json({ error: "Failed to generate download link." });
       }
     }
 
@@ -532,7 +554,7 @@ if (!mongoose.Types.ObjectId.isValid(contentId)) {
       transaction.customer.last_name || ""
     }`.trim();
 
-    // 5️⃣ Find or create creator's account
+    // 5️⃣ Find or create creator’s account
     let account = await Account.findOne({ user: content.creator._id });
     if (!account) {
       account = await Account.create({
@@ -543,60 +565,62 @@ if (!mongoose.Types.ObjectId.isValid(contentId)) {
       });
     }
 
-    // 6️⃣ Check if buyer already purchased
-  // 6️⃣ Check if buyer already purchased
-let sale = account.soldContent.find(
-  (sale) =>
-    sale.content.toString() === content._id.toString() &&
-    sale.buyerEmail === buyerEmail
-);
+    // 6️⃣ Track buyer purchase
+    let sale = account.soldContent.find(
+      (sale) =>
+        sale.content.toString() === content._id.toString() &&
+        sale.buyerEmail === buyerEmail
+    );
 
-if (!sale) {
-  // First-time buyer
-  sale = {
-    content: content._id,
-    buyerEmail,
-    amount: transaction.amount / 100,
-    reference: transaction.reference,
-    title: content.title,
-    status: status,
-    notified: false, // 👈 add a flag to track notification status
-  };
+    if (!sale) {
+      sale = {
+        content: content._id,
+        buyerEmail,
+        amount: transaction.amount / 100,
+        reference: transaction.reference,
+        title: content.title,
+        status,
+        notified: false,
+      };
 
-  account.soldContent.push(sale);
-  account.balance += transaction.amount / 100;
-  content.soldCount += 1;
-  content.viewCount += 1;
+      account.soldContent.push(sale);
+      account.balance += transaction.amount / 100;
+      content.soldCount += 1;
+      content.viewCount += 1;
 
-  await Promise.all([account.save(), content.save()]);
-}
+      await Promise.all([account.save(), content.save()]);
+    }
 
-// 7️⃣ Send notifications only once
-if (!sale.notified) {
-  const contentTitle = content.title;
-  const amount = transaction.amount / 100;
-  const creator = await User.findById(content.creator._id);
-  const creatorName = creator.username || creator.email.split("@")[0];
-  const userEmail = creator.email;
-  const dashboardUrl =
-    process.env.CLIENT_URL?.replace(/\/$/, "") + "/dashboard";
+    // 7️⃣ Send notifications only once
+    if (!sale.notified) {
+      const contentTitle = content.title;
+      const amount = transaction.amount / 100;
+      const creator = await User.findById(content.creator._id);
+      const creatorName = creator.username || creator.email.split("@")[0];
+      const userEmail = creator.email;
+      const dashboardUrl =
+        process.env.CLIENT_URL?.replace(/\/$/, "") + "/dashboard";
 
-  await sendPaymentAlertToCreator(
-    userEmail,
-    creatorName,
-    contentTitle,
-    amount,
-    dashboardUrl
-  );
+      await sendPaymentAlertToCreator(
+        userEmail,
+        creatorName,
+        contentTitle,
+        amount,
+        dashboardUrl
+      );
 
-  await sendPaymentAlertToBuyer(buyerName, contentTitle, contentUrl, buyerEmail);
+      await sendPaymentAlertToBuyer(
+        buyerName,
+        contentTitle,
+        contentUrl,
+        buyerEmail
+      );
 
-  // ✅ Mark as notified
-  sale.notified = true;
-  await account.save();
-}
+      sale.notified = true;
+      await account.save();
+    }
 
-    // 8️⃣ Return response
+    // 8️⃣ Return decrypted/unlocked content
     res.json({
       success: true,
       message: sale
@@ -606,17 +630,15 @@ if (!sale.notified) {
       reference,
       buyerEmail,
       buyerName,
-      full_url: contentUrl,
-      preview_url:content.preview_url
+      full_url: contentUrl, // decrypted or signed
+      preview_url: content.preview_url,
     });
   } catch (error) {
-    console.error(
-      "Payment verification error:",
-      error.response?.data || error.message
-    );
+    console.error("Payment verification error:", error.response?.data || error.message);
     return res.status(500).json({ error: "Failed to verify payment." });
   }
 });
+
  
 
 
@@ -996,6 +1018,26 @@ const contact = async (req, res) => {
     return res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
+
+const getallUser = async()=> {
+
+  try {
+   
+const user = await User.find()
+    // Validate input
+  let totalUser = []
+for (const u of user){
+totalUser.push(u)
+}
+    // (Optional) simple email format check
+
+console.log(totalUser.length)
+  } catch (error) {
+    console.error("Error sending contact email:", error);
+    return res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+};
+
 
 module.exports = {
   getUserContents,
