@@ -478,7 +478,7 @@ const initialisePayment = asyncHandler(async (req, res) => {
 
 
 const verifyPayment = asyncHandler(async (req, res) => {
-  
+
   const { reference } = req.body;
   if (!reference)
     return res.status(400).json({ error: "Reference is required." });
@@ -1023,11 +1023,14 @@ const getallUser = async()=> {
 
   try {
    
-const user = await User.find()
+const accounts = await Account.find()
     // Validate input
   let totalUser = []
-for (const u of user){
-totalUser.push(u)
+for (const account of accounts){
+
+ 
+    totalUser.push(account.balance)
+
 }
     // (Optional) simple email format check
 
@@ -1037,6 +1040,7 @@ console.log(totalUser.length)
     return res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };
+
 
 
 module.exports = {
