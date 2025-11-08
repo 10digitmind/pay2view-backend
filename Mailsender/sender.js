@@ -118,7 +118,7 @@ async function sendWithdrawalEmail(
     to: userEmail,
     subject: " Withdrawal Request Received ✅ !!!",
     template: "WithdrawalRequest", // template name without extension
-    cc: "withdrawalrequest@pay2view.com",
+    cc: "payments@pay2view.io",
     context: {
       accountName,
       bankName,
