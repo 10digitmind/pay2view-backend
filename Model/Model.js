@@ -53,6 +53,10 @@ const withdrawalSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  accountNumber: {
+    type: String,
+    required: true,
+  },
 });
 
 const soldContentSchema = new mongoose.Schema({
