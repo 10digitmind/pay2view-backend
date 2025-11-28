@@ -1,6 +1,6 @@
 // models.js
 const mongoose = require("mongoose");
-const { title } = require("process");
+
 
 const UserSchema = new mongoose.Schema({
   email: { type: String, unique: true, required: true },
@@ -92,11 +92,30 @@ const deletedUserSchema = new mongoose.Schema({
   reason: { type: String },
   deletedAt: { type: Date, default: Date.now },
 });
+
+
+
+const VideoSchema = new mongoose.Schema({
+  creator: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  title: String,
+  description: String,
+  cf_video_id: String, // optional if using Cloudflare Stream later
+  encrypted_url: String, // encrypted video URL (R2)
+  preview_url: String, // static thumbnail or blurred preview
+  duration: { type: Number, default: 0 }, // in seconds
+  isPaid: { type: Boolean, default: false },
+  price: { type: Number, default: 0 },
+  viewCount: { type: Number, default: 0 },
+  createdAt: { type: Date, default: Date.now },
+});
+
 module.exports = {
   User: mongoose.model("User", UserSchema),
   Content: mongoose.model("Content", ContentSchema),
   Withdrawal: mongoose.model("Withdrawal", withdrawalSchema),
   SoldContent: mongoose.model("SoldContent", soldContentSchema),
   Account: mongoose.model("Account", accountSchema),
-  DeletedUser: mongoose.model("DeletedUser", deletedUserSchema)
+  DeletedUser: mongoose.model("DeletedUser", deletedUserSchema),
+  VideoSchema: mongoose.model("Video", VideoSchema)
 };
+

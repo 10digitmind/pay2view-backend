@@ -6,7 +6,8 @@ const {
   SoldContent,
   Withdrawal,
   Account,
-  DeletedUser
+  DeletedUser,
+  VideoSchema
 } = require("../Model/Model"); // your database models
 const bcrypt = require("bcryptjs");
 require("dotenv").config();
@@ -15,10 +16,13 @@ const axios = require("axios");
 const sharp = require("sharp");
 const mongoose = require("mongoose");
 const crypto = require("crypto");
-const {sendVerificationEmail, sendPasswordResetEmail, sendPaymentAlertToCreator, sendPaymentAlertToBuyer, sendWithdrawalEmail, contactEmail,signupAlert} = require("../Mailsender/sender");
+const {sendVerificationEmail, sendPasswordResetEmail, sendPaymentAlertToCreator, sendPaymentAlertToBuyer, sendWithdrawalEmail, contactEmail,signupAlert,confirmWithdrawal} = require("../Mailsender/sender");
 const { S3Client, PutObjectCommand,GetObjectCommand,DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const{encrypt,decrypt} = require('../Controller/Encryption')
+
+
+
 const r2 = new S3Client({
   region: "auto",
   endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
@@ -57,6 +61,7 @@ async function deleteFromCloudflare(imageId) {
   }
 }
 
+//uplaod to cloud flare
 const uploadToCloudflare = async (fileBuffer, filename, mimetype) => {
   const form = new FormData();
   form.append("file", fileBuffer, { filename, contentType: mimetype });
@@ -72,6 +77,7 @@ const uploadToCloudflare = async (fileBuffer, filename, mimetype) => {
   return cfRes.data.result.variants[0]; // returns the uploaded image URL
 };
 
+// register user 
 const registerUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -126,6 +132,7 @@ const registerUser = async (req, res) => {
   }
 };
 
+// verifyEmail
 const verifyEmail = async (req, res) => {
   const { token } = req.query;
 
@@ -174,6 +181,7 @@ const verifyEmail = async (req, res) => {
   }
 };
 
+// resend verification
 const resendVerification = async (req, res) => {
   const { email } = req.body;
 
@@ -205,6 +213,7 @@ const resendVerification = async (req, res) => {
   }
 };
 
+//login user
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -215,7 +224,7 @@ const loginUser = async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({ message: "User not found, kindly sign up" });
+      return res.status(404).json({ message: "nvalid email or  password" });
     }
     if (!user.emailVerified) {
       return res
@@ -246,6 +255,7 @@ const loginUser = async (req, res) => {
   }
 };
 
+// uplaod content 
 const uploadContent = asyncHandler(async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
@@ -333,8 +343,7 @@ if (mimetype === "application/pdf") {
   }
 });
 
-
-
+// get user content
 const getUserContents = async (req, res) => {
   try {
     if (!req.user.id) {
@@ -373,7 +382,7 @@ const getUserContents = async (req, res) => {
   }
 };
 
-
+// get content by id 
 const getContentById = asyncHandler(async (req, res) => {
   const content = await Content.findById(req.params.id);
   if (!content) return res.status(404).json({ error: "Content not found" });
@@ -402,6 +411,7 @@ const getContentById = asyncHandler(async (req, res) => {
   }
 });
 
+// initialise payment 
 const initialisePayment = asyncHandler(async (req, res) => {
   const { contentId, buyerEmail, platformFee } = req.body;
 
@@ -476,7 +486,7 @@ const initialisePayment = asyncHandler(async (req, res) => {
   }
 });
 
-
+// verifiy payment 
 const verifyPayment = asyncHandler(async (req, res) => {
 
   const { reference } = req.body;
@@ -639,9 +649,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
   }
 });
 
- 
-
-
+// get user profile 
 const getUserProfile = async (req, res) => {
   try {
     if(!req.user._id){
@@ -711,10 +719,6 @@ const deleteContent = async (req, res) => {
   res.json({ success: true, message: "Content deleted successfully." });
 };
 
- 
-
-
-
 // POST /api/auth/forgot-password
 const forgotPassword = async (req, res) => {
 
@@ -750,7 +754,6 @@ const forgotPassword = async (req, res) => {
   res.json({ success: true, message: "Password reset email sent." });
 }
 
-
 // POST /api/reset-password
 const resetPassword = async (req, res) => {
 
@@ -778,6 +781,7 @@ const resetPassword = async (req, res) => {
   res.json({ success: true, message: "Password reset successful!" });
 }
 
+// get user account 
 const getUserAccount = asyncHandler(async (req, res) => {
   const userId = req.user.id; // comes from JWT middleware
 
@@ -796,7 +800,7 @@ const getUserAccount = asyncHandler(async (req, res) => {
   res.json({ success: true, account });
 });
 
-
+// request withdrawal 
 const requestWithdrawal = async (req, res) => {
   try {
     const { bankName, accountName, accountNumber, amount } = req.body;
@@ -856,6 +860,7 @@ const userEmail = user.email
   }
 };
 
+// get withdrawal history
 const getWithdrawalHistory = async (req, res) => {
   try {
     // Find all withdrawals for the logged-in user
@@ -877,7 +882,7 @@ const getWithdrawalHistory = async (req, res) => {
   }
 };
 
-
+//UPdate user 
 const updateUserProfile = async (req, res) => {
   try {
     const { fullName, username } = req.body;
@@ -919,7 +924,7 @@ const updateUserProfile = async (req, res) => {
   }
 };
 
-
+// delete user account
 const deleteUserAccount = async (req, res) => {
 
   const { userId } = req.params;
@@ -993,7 +998,7 @@ try {
 
 }
 
-
+// contact 
 const contact = async (req, res) => {
   try {
     const { fullname, email, subject, message, category } = req.body;
@@ -1019,29 +1024,89 @@ const contact = async (req, res) => {
   }
 };
 
-const getallUser = async()=> {
 
-  try {
-   
-const accounts = await Account.find()
-    // Validate input
-  let totalUser = []
-for (const account of accounts){
 
- 
-    totalUser.push(account.balance)
 
+function emailsToArray(emailString) {
+  // Split by newlines, remove empty lines and trim spaces
+  return emailString
+    .split(/\r?\n/)           // split on newline (works on Windows/Linux)
+    .map(email => email.trim()) // remove extra spaces
+    .filter(email => email);   // remove empty strings
 }
-    // (Optional) simple email format check
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+
+
+const sendMarketingEmail = async (req, res) => {
+    let totalUser = []
+  try {
+  
+  const users = await Content.find()
+for (const user of users){
+  totalUser.push(user)
+}
 
 console.log(totalUser.length)
   } catch (error) {
-    console.error("Error sending contact email:", error);
-    return res.status(500).json({ success: false, message: "Server error", error: error.message });
+    console.error('Error in sendMarketingEmail:', error);
+    res.status(500).json({ success: false, message: error.message });
   }
-};
+}
 
 
+
+
+
+async function confirmPayment(email) {
+  const user = await User.findOne({ email: email });
+
+  if (!user) {
+    return console.log("user not found");
+  }
+
+  // Find pending withdrawal
+  let withdrawal = await Withdrawal.findOne({
+    user: user.id,
+    status: "pending",
+  });
+
+  if (!withdrawal) {
+    return console.log("withdrawal not found");
+  }
+
+  const name = user.username;
+  const requestedAmount = withdrawal.amount;
+  const feePercent = 10; // %
+  const feeAmount = requestedAmount * 0.1; // actual amount
+  const netAmount = requestedAmount - feeAmount;
+  const date = new Date();
+  const supportEmail = "payments@pay2view.io";
+
+  // Update withdrawal status
+  withdrawal.status = "completed";
+  await withdrawal.save();
+
+  console.log("withdrawal saved and updated");
+
+  // Send confirmation email
+  await confirmWithdrawal(
+    email,
+    name,
+    requestedAmount,
+    feeAmount,
+    netAmount,
+    date,
+    supportEmail,
+    feePercent
+  );
+}
+
+
+// confirmPayment('olubodekehinde2019@gmail.com')
 
 module.exports = {
   getUserContents,
@@ -1062,5 +1127,5 @@ module.exports = {
   getWithdrawalHistory,
   updateUserProfile,
   deleteUserAccount,
-  contact
+  contact,
 };

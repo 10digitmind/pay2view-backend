@@ -188,6 +188,60 @@ async function signupAlert(name, email,) {
   }
 }
 
+
+
+
+
+async function Test(email) {
+  const transporter = await createTransporter();
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: 'Turn your content to cash 💸 ',
+    template: "Test", // template name without extension
+
+    context: {
+      
+      email,
+      
+    
+    },
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`Marketing email sent  `);
+  } catch (err) {
+    console.error("Error sending email:", err);
+  }
+}
+
+async function confirmWithdrawal(email,name,requestedAmount,feeAmount,netAmount,date,supportEmail,feePercent) {
+  const transporter = await createTransporter();
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: 'Withdrawal Processed 💸 ',
+    template: "confirmWithdrawal", // template name without extension
+
+    context: {
+      
+      name,requestedAmount,feeAmount,netAmount,date,supportEmail,feePercent
+      
+    
+    },
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`withdrawal  email sent  `);
+  } catch (err) {
+    console.error("Error sending email:", err);
+  }
+}
+
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetEmail,
@@ -195,5 +249,7 @@ module.exports = {
   sendPaymentAlertToBuyer,
   sendWithdrawalEmail,
   contactEmail,
-  signupAlert
+  signupAlert,
+  Test,
+  confirmWithdrawal
 };
