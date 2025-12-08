@@ -3,11 +3,10 @@ const asyncHandler = require("express-async-handler"); // to handle async errors
 const {
   User,
   Content,
-  SoldContent,
   Withdrawal,
   Account,
   DeletedUser,
-  VideoSchema
+
 } = require("../Model/Model"); // your database models
 const bcrypt = require("bcryptjs");
 require("dotenv").config();
@@ -16,12 +15,13 @@ const axios = require("axios");
 const sharp = require("sharp");
 const mongoose = require("mongoose");
 const crypto = require("crypto");
-const {sendVerificationEmail, sendPasswordResetEmail, sendPaymentAlertToCreator, sendPaymentAlertToBuyer, sendWithdrawalEmail, contactEmail,signupAlert,confirmWithdrawal} = require("../Mailsender/sender");
+const {sendVerificationEmail, sendPasswordResetEmail, sendPaymentAlertToCreator, sendPaymentAlertToBuyer, sendWithdrawalEmail, contactEmail,signupAlert,confirmWithdrawal,Test} = require("../Mailsender/sender");
 const { S3Client, PutObjectCommand,GetObjectCommand,DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
-const{encrypt,decrypt} = require('../Controller/Encryption')
+const{encrypt,decrypt,} = require('../Controller/Encryption')
 
 
+const fs = require("fs");
 
 const r2 = new S3Client({
   region: "auto",
@@ -39,6 +39,50 @@ async function getPdfSignedUrl(bucket, key) {
   const command = new GetObjectCommand({ Bucket: bucket, Key: key });
   return await getSignedUrl(r2, command, { expiresIn: 3600 }); // 1 hour
 }
+
+
+
+
+
+ async function generateSnippetURL(videoUID, ) {
+
+  try {
+    // 1️⃣ Get video metadata
+
+    
+    // 2️⃣ Call Clip API
+    const clipRes = await axios.post(
+      `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ID}/stream/clip`,
+      {
+        clippedFromVideoUID: videoUID,
+        startTimeSeconds: 0,
+        endTimeSeconds: 3
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.CLOUDFLARE_STREAM_TOKEN}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    // 3️⃣ Return snippet HLS URL
+    const snippetURL = clipRes.data.result.playback.hls;
+    const snippetURL_uid =clipRes. data.result.uid;
+
+    return {snippetURL,snippetURL_uid };
+
+  } catch (err) {
+    console.error("Failed to generate snippet URL:", err.response?.data || err.message);
+    throw err;
+  }
+}
+
+
+
+
+
+
 
 // delete images 
 async function deleteFromCloudflare(imageId) {
@@ -255,17 +299,87 @@ const loginUser = async (req, res) => {
   }
 };
 
+
+
+
+// upload
+
+const uploadToCloudflareStream = async (fileBuffer, originalname) => {
+  try {
+    // Step 1: Request a direct upload URL from Cloudflare
+    const directUploadRes = await axios.post(
+      `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ID}/stream/direct_upload`,
+      { maxDurationSeconds: 3600 },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.CLOUDFLARE_STREAM_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!directUploadRes.data.success) throw new Error("Failed to get direct upload URL");
+
+    const { uploadURL, uid } = directUploadRes.data.result;
+
+    // Step 2: Upload the video buffer directly to that URL
+    await axios.post(uploadURL, fileBuffer, {
+      headers: {
+        "Content-Type": "application/octet-stream",
+      },
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
+    });
+
+    // Step 3: Cloudflare automatically generates preview thumbnails
+    const previewUrl = `https://videodelivery.net/${uid}/thumbnails/thumbnail.jpg?time=5s`;
+
+    return { uid, previewUrl };
+  } catch (err) {
+    console.error("Cloudflare Stream direct upload error:", err.response?.data || err.message);
+    throw err;
+  }
+};
+
+
+
+
+
 // uplaod content 
 const uploadContent = asyncHandler(async (req, res) => {
   try {
+ 
+       const contents = await Content.find({ creator: req.user._id });
+
+      let userVideo = [];
+
+for (const content of contents) {
+  if (content.preview_url.includes("videodelivery.net")) {
+    userVideo.push(content.preview_url);
+  }
+}
+
+if (userVideo.length >= 3) {
+  return res.status(400).json(
+ "You can only upload up to 3 videos."
+  );
+}
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
     const { mimetype, buffer, originalname } = req.file;
+    const extension = originalname.split(".").pop().toLowerCase();
 
-    let fullUrl, previewUrl;
+    const isVideo =
+      mimetype.startsWith("video/") ||
+      ["mp4", "mov", "avi", "mkv", "webm"].includes(extension);
 
+    let fullUrl;
+    let previewUrl;
+    let type;
+    let duration = 0; // <-- declare here so it can be saved later
+
+    // ---------- 1️⃣ PDF ----------
     if (mimetype === "application/pdf") {
-      // 1️⃣ Upload PDF to Cloudflare R2
       const key = `pdfs/${Date.now()}-${originalname}`;
       await r2.send(
         new PutObjectCommand({
@@ -277,24 +391,58 @@ const uploadContent = asyncHandler(async (req, res) => {
       );
 
       fullUrl = `https://${process.env.R2_BUCKET_NAME}.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${key}`;
-
-      // Optional: create a placeholder preview image for PDFs
       previewUrl = "https://upload.wikimedia.org/wikipedia/commons/8/87/PDF_file_icon.svg";
-    } else {
-      // 🖼 Handle images with Cloudflare Images API
- 
-   
+      type = "pdf";
 
-      const previewBuffer = await sharp(buffer).resize(500).blur(40).toBuffer();
+      // ---------- 2️⃣ Video ----------
+    } else if (isVideo) {
+      const directUploadRes = await axios.post(
+        `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ID}/stream/direct_upload`,
+        { maxDurationSeconds: 60 },
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.CLOUDFLARE_STREAM_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!directUploadRes.data.success)
+        throw new Error("Failed to get Cloudflare direct upload URL");
+
+      const { uploadURL, uid } = directUploadRes.data.result;
+
+      const form = new FormData();
+      form.append("file", buffer, {
+        filename: originalname,
+        contentType: mimetype,
+      });
+
+      await axios.post(uploadURL, form, {
+        headers: form.getHeaders(),
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+      });
+
+      const encryptedUID = encrypt(uid);
+      fullUrl = encryptedUID;
+      previewUrl = `https://videodelivery.net/${encryptedUID}/thumbnails/thumbnail.jpg?time=5s`;
+      type = "video";
+
+     
+
+      // ---------- 3️⃣ Image ----------
+    } else {
+      const previewBuffer = await sharp(buffer).resize(500).blur(60).toBuffer();
 
       const uploadToCloudflare = async (fileBuffer, filename) => {
         const form = new FormData();
         form.append("file", fileBuffer, { filename, contentType: mimetype });
         form.append("requireSignedURLs", "false");
 
-        const cfRes = await axios.post(cfUrl, form, {
+        const cfRes = await axios.post(process.env.CLOUDFLARE_IMAGES_URL, form, {
           headers: {
-            Authorization: `Bearer ${CLOUDFLARE_API_TOKEN}`,
+            Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`,
             ...form.getHeaders(),
           },
         });
@@ -309,44 +457,71 @@ const uploadContent = asyncHandler(async (req, res) => {
         `preview-${originalname}`
       );
 
-      fullUrl = encrypt(fullRes.variants[0]);;
+      fullUrl = encrypt(fullRes.variants[0]);
       previewUrl = previewRes.variants[0];
+      type = "image";
     }
 
-    const frontendURL = process.env.CLIENT_URL || "http://localhost:3000";
-    const username = req.user.username;
+    // ---------- 4️⃣ Save to DB ----------
     const { title, description, price } = req.body;
+    const frontendURL = process.env.CLIENT_URL || "http://localhost:3000";
 
-let finalTitle = title; // make a copy
+    let finalTitle = `${title}-${type}`;
 
-if (mimetype === "application/pdf") {
-  finalTitle = `${title}-pdf`;
-} else {
-  finalTitle = `${title}-image`;
-}
     const content = new Content({
       creator: req.user.id,
-      title:finalTitle,
+      title: finalTitle,
       description,
       full_url: fullUrl,
       preview_url: previewUrl,
       price: Math.round(parseFloat(price) || 0),
      
     });
- content.shareLink = `${frontendURL}/view-content/${title}/${content._id}`,
+
+    content.shareLink = `${frontendURL}/view-content/${encodeURIComponent(
+      title
+    )}/${content._id}`;
+
     await content.save();
 
     res.json({ success: true, content });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Server error", details: err.message });
+    console.error(
+      "Upload content error:",
+      err.response?.data || err.message
+    );
+    res.status(500).json({
+      error: "Server error",
+      details: err.response?.data || err.message,
+    });
   }
 });
 
+
+
+
+
+const getVideoPlaybackURL = asyncHandler(async (req, res) => {
+  const { videoId } = req.params;
+
+  // token valid for 1 hour
+  const token = jwt.sign(
+    {
+      sub: videoId,
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    },
+    process.env.CLOUDFLARE_STREAM_SIGNING_KEY
+  );
+
+  const playbackURL = `https://videodelivery.net/${videoId}/manifest/video.m3u8?token=${token}`;
+
+  res.json({ playbackURL });
+});
+
 // get user content
-const getUserContents = async (req, res) => {
+const getUserContents = asyncHandler(async (req, res) => {
   try {
-    if (!req.user.id) {
+    if (!req.user?._id) {
       return res.status(404).json({ message: "User not available" });
     }
 
@@ -356,36 +531,71 @@ const getUserContents = async (req, res) => {
       return res.status(404).json({ message: "No content found for this user" });
     }
 
-    // 🧠 Decrypt image URLs for this user only (they own the content)
-    const decryptedContents = contents.map((content) => {
-      let fullUrl = content.full_url;
+  
+    // Loop through contents to decrypt URLs and fetch duration if needed
+    const processedContents = await Promise.all(
+      contents.map(async (content) => {
+        let fullUrl = content.full_url;
 
-      // Only decrypt if it's an encrypted image (skip PDFs)
-      if (content.title && content.title.endsWith("-image")) {
-        try {
-          fullUrl = decrypt(content.full_url);
-        } catch (err) {
-          console.error(`Failed to decrypt content ID ${content._id}:`, err.message);
+        // Decrypt image/video URLs if needed
+        if (
+          (content.title && content.title.endsWith("-image")) ||
+          (content.preview_url && content.preview_url.includes("videodelivery.net"))
+        ) {
+          try {
+            fullUrl = decrypt(content.full_url);
+          } catch (err) {
+            console.error(`Failed to decrypt content ID ${content._id}:`, err.message);
+          }
         }
-      }
 
-      return {
-        ...content.toObject(),
-        full_url: fullUrl,
-      };
-    });
+        // Fetch duration only if preview exists and videoDuration is missing
+        if (content.preview_url?.includes("videodelivery.net") && !content.videoDuration) {
+          try {
+            const uid = decrypt(content.full_url); // your decrypt function
+            const response = await axios.get(
+              `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ID}/stream/${uid}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${process.env.CLOUDFLARE_STREAM_TOKEN}`,
+                },
+              }
+            );
+            content.videoDuration = response.data.result.duration || 0;
+            await content.save();
+          } catch (err) {
+            console.error(`Failed to fetch duration for content ID ${content._id}:`, err.message);
+          }
+        }
 
-    res.json({ contents: decryptedContents });
+        return {
+          ...content.toObject(),
+          full_url: fullUrl,
+        };
+      })
+    );
+
+    res.json({ contents: processedContents });
   } catch (error) {
     console.error("Error fetching user contents:", error.message);
     res.status(500).json({ message: "Server error while fetching contents" });
   }
-};
+});
+
 
 // get content by id 
 const getContentById = asyncHandler(async (req, res) => {
   const content = await Content.findById(req.params.id);
   if (!content) return res.status(404).json({ error: "Content not found" });
+
+  let videoURL = '';
+  if (content.preview_url?.includes('videodelivery.net')) {
+    try {
+      videoURL = decrypt(content.full_url); // decrypt UID for playback
+    } catch (err) {
+      console.error(`Failed to decrypt video UID for content ${content._id}:`, err.message);
+    }
+  }
 
   if (content.isPaid) {
     // Paid → return full content
@@ -400,12 +610,13 @@ const getContentById = asyncHandler(async (req, res) => {
       success: true,
       unlocked: false,
       content: {
-        _id:content._id,
+        _id: content._id,
         title: content.title || "",
         description: content.description || "",
         preview_url: content.preview_url,
         price: content.price,
-        
+        videoUrl:videoURL, 
+        videoDuration:content.videoDuration// UID for preview player
       },
     });
   }
@@ -488,7 +699,7 @@ const initialisePayment = asyncHandler(async (req, res) => {
 
 // verifiy payment 
 const verifyPayment = asyncHandler(async (req, res) => {
-
+  let emailverification = false
   const { reference } = req.body;
   if (!reference)
     return res.status(400).json({ error: "Reference is required." });
@@ -505,14 +716,11 @@ const verifyPayment = asyncHandler(async (req, res) => {
       }
     );
 
-    const data = response.data;
-    const status = data.data.status;
-
-    if (status !== "success") {
+    const transaction = response.data.data;
+    if (transaction.status !== "success") {
       return res.status(400).json({ error: "Payment not successful." });
     }
 
-    const transaction = data.data;
     const metadata = transaction.metadata;
     const contentId = metadata.contentId?.toString();
 
@@ -531,9 +739,17 @@ const verifyPayment = asyncHandler(async (req, res) => {
 
     // 3️⃣ Generate actual download/view URL
     let contentUrl = content.full_url;
+    const isVideo = content.preview_url?.includes("videodelivery.net");
 
-    if (content.title.endsWith("-image")) {
-      // 🧩 Decrypt image URL for buyer
+    if (isVideo) {
+      try {
+        const uid = decrypt(content.full_url);
+        contentUrl = `https://videodelivery.net/${uid}/manifest/video.m3u8`;
+      } catch (err) {
+        console.error("Failed to decrypt video UID:", err.message);
+        return res.status(500).json({ error: "Failed to unlock full video." });
+      }
+    } else if (content.title.endsWith("-image")) {
       try {
         contentUrl = decrypt(content.full_url);
       } catch (err) {
@@ -541,17 +757,14 @@ const verifyPayment = asyncHandler(async (req, res) => {
         return res.status(500).json({ error: "Failed to unlock content." });
       }
     } else if (content.full_url.endsWith(".pdf")) {
-      // 📄 Generate signed URL for PDF
       try {
         const url = new URL(content.full_url);
         const key = decodeURIComponent(url.pathname.slice(1));
-
         const command = new GetObjectCommand({
           Bucket: process.env.R2_BUCKET_NAME,
           Key: key,
         });
-
-        contentUrl = await getSignedUrl(r2, command, { expiresIn: 3600 }); // 1 hour
+        contentUrl = await getSignedUrl(r2, command, { expiresIn: 3600 });
       } catch (err) {
         console.error("Failed to generate signed URL:", err);
         return res.status(500).json({ error: "Failed to generate download link." });
@@ -575,11 +788,16 @@ const verifyPayment = asyncHandler(async (req, res) => {
       });
     }
 
-    // 6️⃣ Track buyer purchase
+    // 6️⃣ Deduplicate soldContent & find sale
+    account.soldContent = account.soldContent.filter(
+      (s, i, arr) =>
+        i === arr.findIndex(
+          (t) => t.content.toString() === s.content.toString() && t.buyerEmail === s.buyerEmail
+        )
+    );
+
     let sale = account.soldContent.find(
-      (sale) =>
-        sale.content.toString() === content._id.toString() &&
-        sale.buyerEmail === buyerEmail
+      (s) => s.content.toString() === content._id.toString() && s.buyerEmail === buyerEmail
     );
 
     if (!sale) {
@@ -589,11 +807,12 @@ const verifyPayment = asyncHandler(async (req, res) => {
         amount: transaction.amount / 100,
         reference: transaction.reference,
         title: content.title,
-        status,
+        status: transaction.status,
         notified: false,
       };
-
       account.soldContent.push(sale);
+
+      // update balances & counts
       account.balance += transaction.amount / 100;
       content.soldCount += 1;
       content.viewCount += 1;
@@ -603,44 +822,43 @@ const verifyPayment = asyncHandler(async (req, res) => {
 
     // 7️⃣ Send notifications only once
     if (!sale.notified) {
-      const contentTitle = content.title;
-      const amount = transaction.amount / 100;
       const creator = await User.findById(content.creator._id);
       const creatorName = creator.username || creator.email.split("@")[0];
-      const userEmail = creator.email;
       const dashboardUrl =
         process.env.CLIENT_URL?.replace(/\/$/, "") + "/dashboard";
 
-      await sendPaymentAlertToCreator(
-        userEmail,
-        creatorName,
-        contentTitle,
-        amount,
-        dashboardUrl
-      );
+      await Promise.all([
+        sendPaymentAlertToCreator(
+          creator.email,
+          creatorName,
+          content.title,
+          transaction.amount / 100,
+          dashboardUrl
+        ),
+        sendPaymentAlertToBuyer(
+          buyerName,
+          content.title,
+          contentUrl,
+          buyerEmail
+        ),
+      ]);
 
-      await sendPaymentAlertToBuyer(
-        buyerName,
-        contentTitle,
-        contentUrl,
-        buyerEmail
-      );
-
+      
       sale.notified = true;
       await account.save();
     }
 
-    // 8️⃣ Return decrypted/unlocked content
+    // 8️⃣ Return content info
     res.json({
       success: true,
-      message: sale
-        ? "Buyer already purchased this content. Returning content URL."
-        : "Payment verified, content unlocked & account updated.",
+      message: sale.notified
+        ? "Payment verified, content unlocked."
+        : "Buyer already has access. Returning content URL.",
       contentId,
       reference,
       buyerEmail,
       buyerName,
-      full_url: contentUrl, // decrypted or signed
+      full_url: contentUrl,
       preview_url: content.preview_url,
     });
   } catch (error) {
@@ -648,6 +866,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
     return res.status(500).json({ error: "Failed to verify payment." });
   }
 });
+
 
 // get user profile 
 const getUserProfile = async (req, res) => {
@@ -665,40 +884,33 @@ const getUserProfile = async (req, res) => {
 // DELETE /api/content/:id
 const deleteContent = async (req, res) => {
   const contentId = req.params.id;
-  const userId = req.user.id; // assumes auth middleware sets req.user
 
   if (!contentId) {
     return res.status(400).json({ error: "Content ID is required." });
   }
 
-  // Find the content
   const content = await Content.findById(contentId);
   if (!content) {
     return res.status(404).json({ error: "Content not found." });
   }
 
-  // Delete Cloudflare Image if exists
+  // ---------- Delete Cloudflare Image ----------
   try {
     if (content.cf_image_id) {
-      const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
-      const CLOUDFLARE_ID = process.env.CLOUDFLARE_ID;
-
       await axios.delete(
-        `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ID}/images/v1/${content.cf_image_id}`,
-        {
-          headers: { Authorization: `Bearer ${CLOUDFLARE_API_TOKEN}` },
-        }
+        `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ID}/images/v1/${content.cf_image_id}`,
+        { headers: { Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}` } }
       );
     }
   } catch (err) {
-    console.warn("Failed to delete from Cloudflare Images:", err.message);
+    console.warn("Failed to delete Cloudflare Image:", err.message);
   }
 
-  // Delete PDF from R2 if exists
+  // ---------- Delete PDF from R2 ----------
   try {
-    if (content.full_url && content.full_url.endsWith(".pdf")) {
+    if (content.full_url?.endsWith(".pdf")) {
       const url = new URL(content.full_url);
-      const key = decodeURIComponent(url.pathname.slice(1)); // object key
+      const key = decodeURIComponent(url.pathname.slice(1));
 
       await r2.send(
         new DeleteObjectCommand({
@@ -706,18 +918,51 @@ const deleteContent = async (req, res) => {
           Key: key,
         })
       );
-
-      console.log("Deleted PDF from R2:", key);
     }
   } catch (err) {
     console.warn("Failed to delete PDF from R2:", err.message);
   }
 
-  // Delete from DB
+  // ---------- Delete Cloudflare Stream MAIN Video ----------
+  try {
+    const isVideo = content.preview_url?.includes("videodelivery.net");
+
+    if (isVideo && content.full_url) {
+      const mainUid = decrypt(content.full_url);
+
+      await axios.delete(
+        `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ID}/stream/${mainUid}`,
+        { headers: { Authorization: `Bearer ${process.env.CLOUDFLARE_STREAM_TOKEN}` } }
+      );
+
+      console.log("Deleted MAIN video from Cloudflare Stream:", mainUid);
+    }
+  } catch (err) {
+    console.warn("Failed to delete MAIN video:", err.message);
+  }
+
+  // ---------- Delete Cloudflare Stream SNIPPET Video ----------
+  try {
+    if (content.snippetURL_uid) {
+      await axios.delete(
+        `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ID}/stream/${content.snippetURL_uid}`,
+        { headers: { Authorization: `Bearer ${process.env.CLOUDFLARE_STREAM_TOKEN}` } }
+      );
+
+      console.log("Deleted SNIPPET video from Cloudflare Stream:", content.snippetURL_uid);
+    }
+  } catch (err) {
+    console.warn("Failed to delete SNIPPET video:", err.message);
+  }
+
+  // ---------- Delete DB Document ----------
   await Content.findByIdAndDelete(contentId);
 
-  res.json({ success: true, message: "Content deleted successfully." });
+  res.json({ success: true, message: "Content, main video, and snippet deleted successfully." });
 };
+
+
+
 
 // POST /api/auth/forgot-password
 const forgotPassword = async (req, res) => {
@@ -1042,20 +1287,33 @@ function delay(ms) {
 
 
 const sendMarketingEmail = async (req, res) => {
-    let totalUser = []
   try {
-  
-  const users = await Content.find()
-for (const user of users){
-  totalUser.push(user)
-}
+    const users = await User.find({ emailVerified: "true" });
 
-console.log(totalUser.length)
+    let totalSent = 0;
+
+    for (const user of users) {
+      try {
+        await Test( user.username, user.email); // send email
+        totalSent++;
+      } catch (err) {
+        console.error(`Failed to send to ${user.email}:`, err.message);
+      }
+    }
+
+    console.log("Total emails sent:", totalSent);
+
+    console.log({
+      success: true,
+      message: `Marketing emails sent to ${totalSent} users.`,
+    });
+
   } catch (error) {
-    console.error('Error in sendMarketingEmail:', error);
+    console.error("Error in sendMarketingEmail:", error);
     res.status(500).json({ success: false, message: error.message });
   }
-}
+};
+
 
 
 
@@ -1105,8 +1363,78 @@ async function confirmPayment(email) {
   );
 }
 
+const getVideoSnippet = asyncHandler(async (req, res) => {
+  const { id } = req.params;
 
-// confirmPayment('olubodekehinde2019@gmail.com')
+  const content = await Content.findById(id);
+  if (!content) return res.status(404).json({ error: "Content not found" });
+
+  const videoUID = decrypt(content.full_url);
+
+  // ============================
+  // PAID USER → give full video
+  // ============================
+  if (content.isPaid) {
+    return res.json({
+      success: true,
+      unlocked: true,
+      videoURL: `https://videodelivery.net/${videoUID}/manifest/video.m3u8`,
+    });
+  }
+
+  // ==================================================
+  // UNPAID USER → only return snippet (generate once)
+  // ==================================================
+
+  // 1️⃣ If snippet already exists → return it
+  if (content.snippetURL) {
+    return res.json({
+      success: true,
+      unlocked: false,
+      snippetURL: content.snippetURL,
+      duration: 5,
+    });
+  }
+
+  // 2️⃣ Generate snippet (5 sec fixed)
+  try {
+    const {snippetURL,snippetURL_uid} = await generateSnippetURL(videoUID);
+
+    content.snippetURL = snippetURL;
+    content.snippetURL_uid= snippetURL_uid
+    await content.save();
+
+    return res.json({
+      success: true,
+      unlocked: false,
+      snippetURL,
+      duration: 5,
+    });
+
+  } catch (err) {
+    console.error("Snippet generation failed:", err);
+    return res.status(500).json({ error: "Failed to generate snippet" });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// confirmPayment("josephdonee057@gmail.com")
+
+
 
 module.exports = {
   getUserContents,
@@ -1128,4 +1456,8 @@ module.exports = {
   updateUserProfile,
   deleteUserAccount,
   contact,
+  getVideoSnippet,
+  
+
+
 };

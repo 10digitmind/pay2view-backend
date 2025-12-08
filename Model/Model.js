@@ -1,5 +1,6 @@
 // models.js
 const mongoose = require("mongoose");
+const { type } = require("os");
 
 
 const UserSchema = new mongoose.Schema({
@@ -26,13 +27,18 @@ const ContentSchema = new mongoose.Schema({
   cf_image_id: String, // Cloudflare Images ID
   cf_variants: Object, // any CF returned variants
   preview_url: String, // small blurred preview (you can generate or store a thumbnail)
-  full_url: String, // Cloudflare image URL (or returned src)
+  full_url: String,
+  snippetURL:String,
+  snippetURL_uid:String,
+   // Cloudflare image URL (or returned src)
   isPaid: { type: Boolean, default: false },
   price: { type: Number, default: 0 }, // amount in kobo (Paystack expects smallest unit)
   viewCount: { type: Number, default: 0 },
   soldCount: { type: Number, default: 0 },
   shareLink: { type: String },
   createdAt: { type: Date, default: Date.now },
+  videoDuration:Number,
+  isReady:{type:Boolean, default:false}
 });
 
 const withdrawalSchema = new mongoose.Schema({

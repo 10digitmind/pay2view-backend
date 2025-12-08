@@ -1,4 +1,4 @@
-const crypto = require('crypto');
+import crypto from 'crypto'
 
 // Use a 32-byte key stored in .env
 const algorithm = 'aes-256-cbc';
@@ -93,6 +93,8 @@ async function sendMarketingEmails(emailString, batchSize = 10, delayMs = 5000) 
 
   console.log('All emails processed!');
 }
+
+
 
 
 module.exports = { encrypt, decrypt,uploadToCloudflare };

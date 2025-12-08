@@ -162,8 +162,6 @@ async function contactEmail(fullname, email, subject, message, category) {
 }
 
 
-
-
 async function signupAlert(name, email,) {
   const transporter = await createTransporter();
 
@@ -192,19 +190,19 @@ async function signupAlert(name, email,) {
 
 
 
-async function Test(email) {
+async function Test(name,email) {
   const transporter = await createTransporter();
 
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
-    subject: 'Turn your content to cash 💸 ',
-    template: "Test", // template name without extension
+    subject: 'How to Make Money on Pay2View 💸 ',
+    template: "marketing", // template name without extension
 
     context: {
       
-      email,
-      
+      name,
+      email
     
     },
   };
