@@ -190,7 +190,7 @@ async function signupAlert(name, email,) {
 
 
 
-async function Test(name,email) {
+async function Test(name,email,upload_link) {
   const transporter = await createTransporter();
 
   const mailOptions = {
@@ -202,7 +202,8 @@ async function Test(name,email) {
     context: {
       
       name,
-      email
+      email,
+      upload_link
     
     },
   };

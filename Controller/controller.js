@@ -430,7 +430,6 @@ if (userVideo.length >= 3) {
       type = "video";
 
      
-
       // ---------- 3️⃣ Image ----------
     } else {
       const previewBuffer = await sharp(buffer).resize(500).blur(60).toBuffer();
@@ -1286,15 +1285,20 @@ function delay(ms) {
 
 
 
-const sendMarketingEmail = async (req, res) => {
+
+
+
+const sendMarketingEmail = async () => {
   try {
-    const users = await User.find({ emailVerified: "true" });
+    // Get all users with verified emails
+    const users = await User.find({ emailVerified: true });
 
     let totalSent = 0;
 
     for (const user of users) {
       try {
-        await Test( user.username, user.email); // send email
+        const upload_link = 'https://www.pay2view.io/upload-content';
+        await Test(user.username, user.email, upload_link); // send email
         totalSent++;
       } catch (err) {
         console.error(`Failed to send to ${user.email}:`, err.message);
@@ -1302,22 +1306,12 @@ const sendMarketingEmail = async (req, res) => {
     }
 
     console.log("Total emails sent:", totalSent);
-
-    console.log({
-      success: true,
-      message: `Marketing emails sent to ${totalSent} users.`,
-    });
-
   } catch (error) {
     console.error("Error in sendMarketingEmail:", error);
-    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-
-
-
-
+// sendMarketingEmail()
 
 async function confirmPayment(email) {
   const user = await User.findOne({ email: email });

@@ -46,7 +46,7 @@ router.post("/api/update-user-profile", protect, uploadsingle, updateUserProfile
 router.get("/api/get-content/:id", getContentById);
 router.post("/api/pay-2-view", initialisePayment);
 router.post("/api/verify-payment", verifyPayment);
-router.post("/api/verify-email", verifyEmail);
+router.get("/api/verify-email", verifyEmail);
 router.post("/api/resendverification-email", resendVerification);
 router.get("/api/get-user-profile",protect, getUserProfile);
 router.get("/api/get-user-content",protect, getUserContents);
