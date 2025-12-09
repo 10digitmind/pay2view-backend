@@ -348,22 +348,6 @@ const uploadToCloudflareStream = async (fileBuffer, originalname) => {
 // uplaod content 
 const uploadContent = asyncHandler(async (req, res) => {
   try {
- 
-       const contents = await Content.find({ creator: req.user._id });
-
-      let userVideo = [];
-
-for (const content of contents) {
-  if (content.preview_url.includes("videodelivery.net")) {
-    userVideo.push(content.preview_url);
-  }
-}
-
-if (userVideo.length >= 3) {
-  return res.status(400).json(
- "You can only upload up to 3 videos."
-  );
-}
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
     const { mimetype, buffer, originalname } = req.file;
@@ -373,13 +357,29 @@ if (userVideo.length >= 3) {
       mimetype.startsWith("video/") ||
       ["mp4", "mov", "avi", "mkv", "webm"].includes(extension);
 
+    let type;
+    if (mimetype === "application/pdf") {
+      type = "pdf";
+    } else if (isVideo) {
+      type = "video";
+    } else {
+      type = "image";
+    }
+
+    // ---------- VIDEO LIMIT ----------
+    if (type === "video") {
+      const contents = await Content.find({ creator: req.user._id });
+      const userVideoCount = contents.filter(c => c.type === "video").length;
+      if (userVideoCount >= 3) {
+        return res.status(400).json("You can only upload up to 3 videos.");
+      }
+    }
+
+    // ---------- UPLOAD FILE ----------
     let fullUrl;
     let previewUrl;
-    let type;
-    let duration = 0; // <-- declare here so it can be saved later
 
-    // ---------- 1️⃣ PDF ----------
-    if (mimetype === "application/pdf") {
+    if (type === "pdf") {
       const key = `pdfs/${Date.now()}-${originalname}`;
       await r2.send(
         new PutObjectCommand({
@@ -389,13 +389,10 @@ if (userVideo.length >= 3) {
           ContentType: "application/pdf",
         })
       );
-
       fullUrl = `https://${process.env.R2_BUCKET_NAME}.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${key}`;
       previewUrl = "https://upload.wikimedia.org/wikipedia/commons/8/87/PDF_file_icon.svg";
-      type = "pdf";
 
-      // ---------- 2️⃣ Video ----------
-    } else if (isVideo) {
+    } else if (type === "video") {
       const directUploadRes = await axios.post(
         `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ID}/stream/direct_upload`,
         { maxDurationSeconds: 60 },
@@ -413,11 +410,7 @@ if (userVideo.length >= 3) {
       const { uploadURL, uid } = directUploadRes.data.result;
 
       const form = new FormData();
-      form.append("file", buffer, {
-        filename: originalname,
-        contentType: mimetype,
-      });
-
+      form.append("file", buffer, { filename: originalname, contentType: mimetype });
       await axios.post(uploadURL, form, {
         headers: form.getHeaders(),
         maxBodyLength: Infinity,
@@ -427,11 +420,9 @@ if (userVideo.length >= 3) {
       const encryptedUID = encrypt(uid);
       fullUrl = encryptedUID;
       previewUrl = `https://videodelivery.net/${encryptedUID}/thumbnails/thumbnail.jpg?time=5s`;
-      type = "video";
 
-     
-      // ---------- 3️⃣ Image ----------
     } else {
+      // IMAGE
       const previewBuffer = await sharp(buffer).resize(500).blur(60).toBuffer();
 
       const uploadToCloudflare = async (fileBuffer, filename) => {
@@ -451,25 +442,17 @@ if (userVideo.length >= 3) {
       };
 
       const fullRes = await uploadToCloudflare(buffer, originalname);
-      const previewRes = await uploadToCloudflare(
-        previewBuffer,
-        `preview-${originalname}`
-      );
+      const previewRes = await uploadToCloudflare(previewBuffer, `preview-${originalname}`);
 
       fullUrl = encrypt(fullRes.variants[0]);
       previewUrl = previewRes.variants[0];
-      type = "image";
     }
 
-
-
-
-    // ---------- 4️⃣ Save to DB ----------
+    // ---------- SAVE TO DB ----------
     const { title, description, price } = req.body;
     const frontendURL = process.env.CLIENT_URL || "http://localhost:3000";
 
-    let finalTitle = `${title}-${type}`;
-
+    const finalTitle = `${title}-${type}`;
     const content = new Content({
       creator: req.user.id,
       title: finalTitle,
@@ -477,27 +460,22 @@ if (userVideo.length >= 3) {
       full_url: fullUrl,
       preview_url: previewUrl,
       price: Math.round(parseFloat(price) || 0),
-     
+      type, // ✅ save type
     });
 
-    content.shareLink = `${frontendURL}/view-content/${encodeURIComponent(
-      title
-    )}/${content._id}`;
-
+    content.shareLink = `${frontendURL}/view-content/${encodeURIComponent(title)}/${content._id}`;
     await content.save();
 
     res.json({ success: true, content });
   } catch (err) {
-    console.error(
-      "Upload content error:",
-      err.response?.data || err.message
-    );
+    console.error("Upload content error:", err.response?.data || err.message);
     res.status(500).json({
       error: "Server error",
       details: err.response?.data || err.message,
     });
   }
 });
+
 
 
 
@@ -1416,8 +1394,71 @@ const getVideoSnippet = asyncHandler(async (req, res) => {
 
 
 
+// Extract Cloudflare video ID
+function extractVideoId(urlOrId) {
+  if (!urlOrId.includes("/")) return urlOrId; // already an ID
+
+  // Example: https://videodelivery.net/<ID>/thumbnails
+  const parts = urlOrId.split("/");
+  return parts[3]; // ID always appears after the domain
+}
 
 
+
+const checkVideoStatus = asyncHandler(async (req, res) => {
+  try {
+    const { videos } = req.body;
+
+    if (!Array.isArray(videos)) {
+      return res.status(400).json({ error: "videos must be an array" });
+    }
+
+    const results = [];
+
+    // Helper to extract UID from URL or return ID if already UID
+    const extractVideoId = (urlOrId) => {
+      if (urlOrId.includes("videodelivery.net")) {
+        // e.g. https://videodelivery.net/<UID>/manifest/video.m3u8
+        const parts = urlOrId.split("/");
+        return parts[3]; // UID is always the 4th segment
+      }
+      return urlOrId; // assume already UID
+    };
+
+    for (const video of videos) {
+      const id = extractVideoId(video);
+
+      try {
+        const resp = await axios.get(
+          `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ID}/stream/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${process.env.CLOUDFLARE_STREAM_TOKEN}`,
+            },
+          }
+        );
+
+        results.push({
+          id,
+          status: resp.data.result.status,
+          ready: resp.data.result.readyToStream === true,
+        });
+      } catch (err) {
+        console.error(`Error fetching Cloudflare video ${id}:`, err.response?.data || err.message);
+        results.push({
+          id,
+          error: true,
+          ready: false,
+        });
+      }
+    }
+
+    return res.json({ results });
+  } catch (err) {
+    console.error("checkVideoStatus error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
 
 
 
@@ -1453,6 +1494,7 @@ module.exports = {
   deleteUserAccount,
   contact,
   getVideoSnippet,
+  checkVideoStatus
   
 
 

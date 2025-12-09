@@ -21,6 +21,7 @@ const {
    deleteUserAccount,
    getVideoSnippet,
    contact,
+   checkVideoStatus
 
 
 } = require("../Controller/controller");
@@ -63,8 +64,10 @@ router.delete("/api/delete-user-account/:userId", protect,deleteUserAccount);
 router.post("/api/contact",contact);
 
 router.get("/api/video-snippet/:id",getVideoSnippet);
+router.post("/api/check-video-status", checkVideoStatus);
 
 
+  
 
 
 module.exports = router;

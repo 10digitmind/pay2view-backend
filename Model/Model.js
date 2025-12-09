@@ -30,7 +30,7 @@ const ContentSchema = new mongoose.Schema({
   full_url: String,
   snippetURL:String,
   snippetURL_uid:String,
-   // Cloudflare image URL (or returned src)
+  type:String,
   isPaid: { type: Boolean, default: false },
   price: { type: Number, default: 0 }, // amount in kobo (Paystack expects smallest unit)
   viewCount: { type: Number, default: 0 },
