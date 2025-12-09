@@ -461,6 +461,12 @@ if (userVideo.length >= 3) {
       type = "image";
     }
 
+
+console.log("Cloudflare Images URL:", process.env.CLOUDFLARE_IMAGES_URL);
+console.log("R2 Bucket URL:", process.env.R2_BUCKET_NAME, process.env.R2_ACCOUNT_ID);
+console.log("Cloudflare Stream ID:", process.env.CLOUDFLARE_ID);
+
+
     // ---------- 4️⃣ Save to DB ----------
     const { title, description, price } = req.body;
     const frontendURL = process.env.CLIENT_URL || "http://localhost:3000";
@@ -769,7 +775,6 @@ const verifyPayment = asyncHandler(async (req, res) => {
         return res.status(500).json({ error: "Failed to generate download link." });
       }
     }
-
     // 4️⃣ Buyer info
     const buyerEmail = transaction.customer.email;
     const buyerName = `${transaction.customer.first_name || ""} ${
