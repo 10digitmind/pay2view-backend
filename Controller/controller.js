@@ -462,9 +462,6 @@ if (userVideo.length >= 3) {
     }
 
 
-console.log("Cloudflare Images URL:", process.env.CLOUDFLARE_IMAGES_URL);
-console.log("R2 Bucket URL:", process.env.R2_BUCKET_NAME, process.env.R2_ACCOUNT_ID);
-console.log("Cloudflare Stream ID:", process.env.CLOUDFLARE_ID);
 
 
     // ---------- 4️⃣ Save to DB ----------
