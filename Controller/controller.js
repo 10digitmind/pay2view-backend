@@ -1413,45 +1413,44 @@ const checkVideoStatus = asyncHandler(async (req, res) => {
       return res.status(400).json({ error: "videos must be an array" });
     }
 
-    const results = [];
-
     // Helper to extract UID from URL or return ID if already UID
     const extractVideoId = (urlOrId) => {
       if (urlOrId.includes("videodelivery.net")) {
-        // e.g. https://videodelivery.net/<UID>/manifest/video.m3u8
         const parts = urlOrId.split("/");
         return parts[3]; // UID is always the 4th segment
       }
       return urlOrId; // assume already UID
     };
 
-    for (const video of videos) {
-      const id = extractVideoId(video);
+    const results = await Promise.all(
+      videos.map(async (video) => {
 
-      try {
-        const resp = await axios.get(
-          `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ID}/stream/${id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${process.env.CLOUDFLARE_STREAM_TOKEN}`,
-            },
-          }
-        );
+        const id = extractVideoId(video);
 
-        results.push({
-          id,
-          status: resp.data.result.status,
-          ready: resp.data.result.readyToStream === true,
-        });
-      } catch (err) {
-        console.error(`Error fetching Cloudflare video ${id}:`, err.response?.data || err.message);
-        results.push({
-          id,
-          error: true,
-          ready: false,
-        });
-      }
-    }
+        try {
+          const resp = await axios.get(
+            `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ID}/stream/${id}`,
+            {
+              headers: { Authorization: `Bearer ${process.env.CLOUDFLARE_STREAM_TOKEN}` },
+            }
+          );
+
+
+          return {
+            id,
+            status: resp.data.result.status,
+            ready: resp.data.result.readyToStream === true,
+          };
+        } catch (err) {
+          console.error(`Error fetching Cloudflare video ${id}:`, err.response?.data || err.message);
+          return {
+            id,
+            error: true,
+            ready: false,
+          };
+        }
+      })
+    );
 
     return res.json({ results });
   } catch (err) {
@@ -1459,6 +1458,7 @@ const checkVideoStatus = asyncHandler(async (req, res) => {
     return res.status(500).json({ error: "Server error" });
   }
 });
+
 
 
 
