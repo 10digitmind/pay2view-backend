@@ -1067,6 +1067,11 @@ const requestWithdrawal = async (req, res) => {
       return res.status(400).json({ message: "Insufficient balance" });
     }
 
+
+       if ( amount < 1000) {
+      return res.status(400).json({ message: "The minimum withdrawal amount is ₦1000." });
+    }
+
     const user= await User.findById(req.user.id)
 
      if (!user) {
