@@ -1149,6 +1149,7 @@ const updateUserProfile = async (req, res) => {
 
     // Parse social if sent as JSON string
     let socialObj = {};
+
     if (social) {
       socialObj = typeof social === "string" ? JSON.parse(social) : social;
     }
@@ -1157,10 +1158,10 @@ const updateUserProfile = async (req, res) => {
       req.user._id,
       {
         ...(fullName && { fullName }),
-        ...(username && { username }),
-        ...(profilePic && { profilePic }),
-        ...(bio && { bio }),
-        ...(socialObj && { social: socialObj }),
+    ...(username && { username }),
+    ...(profilePic && { profilePic }),
+    ...(bio !== undefined && { bio }), // allow empty string
+    ...(socialObj && { social: socialObj }),
       },
       { new: true }
     ).select("-passwordHash");
