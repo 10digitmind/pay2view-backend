@@ -21,7 +21,9 @@ const {
    deleteUserAccount,
    getVideoSnippet,
    contact,
-   checkVideoStatus
+   checkVideoStatus,
+   getUserByUsername,
+   checkUsernameAvailability
 
 
 } = require("../Controller/controller");
@@ -65,6 +67,10 @@ router.post("/api/contact",contact);
 
 router.get("/api/video-snippet/:id",getVideoSnippet);
 router.post("/api/check-video-status", checkVideoStatus);
+router.get("/api/get-user-by-username/:username", getUserByUsername);
+router.get("/api/check-username-availability",protect, checkUsernameAvailability);
+
+
 
 
   

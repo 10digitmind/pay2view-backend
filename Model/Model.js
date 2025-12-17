@@ -4,18 +4,38 @@ const { type } = require("os");
 
 
 const UserSchema = new mongoose.Schema({
-  email: { type: String, unique: true, required: true },
+ email: {
+  type: String,
+  required: true,
+  unique: true,
+  lowercase: true,
+  index: true,
+},
+
   passwordHash: { type: String, required: true },
-  username: { type: String, trim: true },
+ username: {
+  type: String,
+  required: true,
+  unique: true,
+  index: true,
+},
+
   emailVerified: { type: Boolean, default: false },
   emailVerificationToken: String,
   createdAt: { type: Date, default: Date.now },
   profilePic: String,
   fullName: { type: String, trim: true },
-  createdAt: { type: Date, default: Date.now },
   // models/User.js
   resetPasswordToken: String,
   resetPasswordExpires: Date,
+   social: {
+  facebook: { type: String, default: "" },
+  x: { type: String, default: "" },
+  tiktok: { type: String, default: "" },
+  snapchat: { type: String, default: "" },
+  instagram: { type: String, default: "" },
+},
+  bio:{type: String, default: "Welcome to my profile! I share my work and updates here."}
 
   // other fields...
 });
@@ -38,7 +58,9 @@ const ContentSchema = new mongoose.Schema({
   shareLink: { type: String },
   createdAt: { type: Date, default: Date.now },
   videoDuration:Number,
-  isReady:{type:Boolean, default:false}
+  isReady:{type:Boolean, default:false},
+
+  
 });
 
 const withdrawalSchema = new mongoose.Schema({

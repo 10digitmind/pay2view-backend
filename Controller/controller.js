@@ -18,10 +18,34 @@ const crypto = require("crypto");
 const {sendVerificationEmail, sendPasswordResetEmail, sendPaymentAlertToCreator, sendPaymentAlertToBuyer, sendWithdrawalEmail, contactEmail,signupAlert,confirmWithdrawal,Test} = require("../Mailsender/sender");
 const { S3Client, PutObjectCommand,GetObjectCommand,DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
-const{encrypt,decrypt,} = require('../Controller/Encryption')
+const{encrypt,decrypt} = require('../Controller/Encryption')
 
 
 const fs = require("fs");
+
+
+const generateUsername = (email) => {
+  const base = email.split("@")[0].replace(/[^a-zA-Z0-9]/g, "");
+  const shortBase = base.slice(0, 6).toLowerCase(); // limit length
+  const randomNum = Math.floor(1000 + Math.random() * 9000); // 4 digits
+
+  return `${shortBase}_${randomNum}`;
+};
+
+
+const generateUniqueUsername = async (email) => {
+  let username;
+  let exists = true;
+
+  while (exists) {
+    username = generateUsername(email);
+    exists = await User.exists({ username });
+  }
+
+  return username;
+};
+
+
 
 const r2 = new S3Client({
   region: "auto",
@@ -137,7 +161,7 @@ const registerUser = async (req, res) => {
     }
 
     // Create username from first 4 chars of email
-    const username = email.slice(0, 4);
+    const username = await generateUniqueUsername(email);
 
     // Hash password
     const salt = await bcrypt.genSalt(10);
@@ -268,7 +292,7 @@ const loginUser = async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({ message: "nvalid email or  password" });
+      return res.status(404).json({ message: "invalid email or  password" });
     }
     if (!user.emailVerified) {
       return res
@@ -1109,8 +1133,9 @@ const getWithdrawalHistory = async (req, res) => {
 //UPdate user 
 const updateUserProfile = async (req, res) => {
   try {
-    const { fullName, username } = req.body;
-    
+    // Extract all fields from request body
+    const { fullName, username, bio, social } = req.body;
+
     let profilePic;
 
     // If image file is uploaded
@@ -1122,17 +1147,23 @@ const updateUserProfile = async (req, res) => {
       );
     }
 
+    // Parse social if sent as JSON string
+    let socialObj = {};
+    if (social) {
+      socialObj = typeof social === "string" ? JSON.parse(social) : social;
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       req.user._id,
       {
         ...(fullName && { fullName }),
         ...(username && { username }),
         ...(profilePic && { profilePic }),
+        ...(bio && { bio }),
+        ...(socialObj && { social: socialObj }),
       },
       { new: true }
     ).select("-passwordHash");
-
-    console.log(updatedUser)
 
     if (!updatedUser) {
       return res.status(404).json({ message: "User not found" });
@@ -1147,6 +1178,7 @@ const updateUserProfile = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 
 // delete user account
 const deleteUserAccount = async (req, res) => {
@@ -1463,14 +1495,178 @@ const checkVideoStatus = asyncHandler(async (req, res) => {
 
 
 
+//  confirmPayment("naijacommissionhub@gmail.com")
+
+const getUserByUsername = asyncHandler(async (req, res) => {
+  const { username } = req.params;
+
+  if (!username) {
+    return res.status(400).json({ message: "Username is required" });
+  }
+
+  try {
+    // Find the creator first
+    const creator = await User.findOne({ username:username })
+
+
+
+    if (!creator) {
+      return res.status(404).json({ message: "Creator not found" });
+    }
+
+    // Query content using ObjectId directly
+ const userContent = await Content.find({
+  creator: new mongoose.Types.ObjectId(creator._id)
+});
+
+
+    if (!userContent || userContent.length === 0) {
+      return res.status(404).json({ message: "No content found for this user" });
+    }
+  const formattedContent = userContent.map((item) => {
+  const contentObj = item.toObject();
+
+  if (contentObj.type === "video" && contentObj.full_url) {
+    // take only the UID part
+    const  uid = decrypt(contentObj.full_url)
+
+    contentObj.full_url = uid // overwrite with clean UID
+  }
+
+  return contentObj;
+});
+
+
+res.json({ creator,userContent: formattedContent });
+  } catch (error) {
+    console.error("Error fetching content:", error.message);
+    res.status(500).json({ message: "Server error while fetching content" });
+  }
+});
 
 
 
 
 
 
-// confirmPayment("josephdonee057@gmail.com")
+async function confirmPayment(email) {
+  const user = await User.findOne({ email: email });
 
+  if (!user) {
+    return console.log("user not found");
+  }
+
+  // Find pending withdrawal
+  let withdrawal = await Withdrawal.findOne({
+    user: user.id,
+    status: "pending",
+  });
+
+  if (!withdrawal) {
+    return console.log("withdrawal not found");
+  }
+
+  const name = user.username;
+  const requestedAmount = withdrawal.amount;
+  const feePercent = 10; // %
+  const feeAmount = requestedAmount * 0.1; // actual amount
+  const netAmount = requestedAmount - feeAmount;
+  const date = new Date();
+  const supportEmail = "payments@pay2view.io";
+
+  // Update withdrawal status
+  withdrawal.status = "completed";
+  await withdrawal.save();
+
+  console.log("withdrawal saved and updated");
+
+  // Send confirmation email
+  await confirmWithdrawal(
+    email,
+    name,
+    requestedAmount,
+    feeAmount,
+    netAmount,
+    date,
+    supportEmail,
+    feePercent
+  );
+}
+
+
+
+
+
+
+const checkUsernameAvailability = async (req, res) => {
+
+  const reservedUsernames = [ "admin",
+  "support",
+  "settings",
+  "login",
+  "signup",
+  "dashboard",
+  "api",
+  "root",
+  "admin",
+  "support",
+  "settings",
+  "login",
+  "signup",
+  "dashboard",
+  "api",
+  "root",
+  ]
+  try {
+    let { username } = req.query;
+
+    if (!username) {
+      return res.status(400).json({
+        available: false,
+        message: "Username is required",
+      });
+    }
+
+    // normalize
+    username = username.toLowerCase().trim();
+
+    // basic validation
+    if (!/^[a-z0-9_]{3,20}$/.test(username)) {
+      return res.status(400).json({
+        available: false,
+        message:
+          "Username must be 3–20 characters (letters, numbers, underscore)",
+      });
+    }
+
+    // reserved check
+    if (reservedUsernames.includes(username)) {
+      return res.status(400).json({
+        available: false,
+        message: "This username is reserved",
+      });
+    }
+
+    // exclude current user (important for edits)
+    const userId = req.user?._id;
+
+    const exists = await User.findOne({
+      username,
+      ...(userId && { _id: { $ne: userId } }),
+    });
+
+    return res.status(200).json({
+      available: !exists,
+      message: exists ? "Username is already taken" : "Username is available",
+    });
+  } catch (error) {
+    console.error("Check username error:", error);
+    res.status(500).json({
+      available: false,
+      message: "Server error",
+    });
+  }
+};
 
 
 module.exports = {
@@ -1494,7 +1690,9 @@ module.exports = {
   deleteUserAccount,
   contact,
   getVideoSnippet,
-  checkVideoStatus
+  checkVideoStatus,
+  getUserByUsername,
+  checkUsernameAvailability
   
 
 
