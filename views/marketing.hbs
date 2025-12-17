@@ -1,70 +1,105 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
   <head>
     <meta charset="UTF-8">
-    <title>Pay2View Video Upload is Here!</title>
+    <title>New: Creator Hub on Pay2View!</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f9f9f9;
+        color: #333;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 30px auto;
+        background: #fff;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      }
+      h2 {
+        color: #000000;
+        text-align: center;
+      }
+      p {
+        font-size: 15px;
+        line-height: 1.6;
+      }
+      ul {
+        padding-left: 20px;
+      }
+      .cta {
+        display: block;
+        text-align: center;
+        background: #000000;
+        color: #ffffff;
+        text-decoration: none;
+        padding: 12px 20px;
+        border-radius: 6px;
+        font-weight: bold;
+        margin: 20px auto;
+        width: fit-content;
+      }
+      .cta:hover {
+        background: #000000;
+      }
+      .highlight {
+        color: #2b7cff;
+        font-weight: bold;
+      }
+      .highlight-earn {
+        color: #28a745;
+        font-weight: bold;
+      }
+      .creator-hub {
+        background: #f0f6ff;
+        border-left: 4px solid #2b7cff;
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+      footer {
+        text-align: center;
+        font-size: 12px;
+        color: #777;
+        margin-top: 30px;
+        border-top: 1px solid #eee;
+        padding-top: 10px;
+      }
+      a.unsubscribe {
+        color: #777;
+        text-decoration: underline;
+      }
+    </style>
   </head>
-  <body style="margin:0; padding:0; background-color:#f5f5f5; font-family: Arial, sans-serif;">
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f5f5f5; padding:20px 0;">
-      <tr>
-        <td align="center">
-          <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff; border-radius:8px; overflow:hidden; border:1px solid #dddddd; box-shadow: 0 5px 20px rgba(0,0,0,0.1);">
-            
-            <!-- Header -->
-            <tr>
-              <td align="center" bgcolor="#000000" style="color:#ffffff; padding:30px; font-size:24px; font-weight:bold;">
-                🎬 The Wait is Over! Video Uploads Are Here!
-              </td>
-            </tr>
-            
-            <!-- Body -->
-            <tr>
-              <td style="padding:30px; color:#333333; font-size:15px; line-height:1.7;">
-                
-                <p style="margin-top:0; font-size:16px;">
-                  Hi {{name}},  
-                  Exciting news! You can now upload videos on Pay2View and start earning more from your content.
-                </p>
+  <body>
+    <div class="container">
+      <h2>Introducing Creator Hub 🚀</h2>
+      <p>Hello {{username}},</p>
+      <p>We’re excited to announce <span class="highlight">Creator Hub</span> — a brand-new feature on Pay2View that makes sharing your content easier than ever!</p>
 
-                <ul style="padding-left:18px; margin:15px 0; font-size:15px;">
-                  <li>Upload **up to 3 videos** per month, each **10 to 60 seconds long**.</li>
-                  <li>All videos are fully **encrypted** for security and peace of mind.</li>
-                  <li>We take a **20% fee** from video sales due to storage and streaming costs.</li>
-                  <li>Share trending or highly-demanded videos — people want to watch, and you earn!</li>
-                  <li>Use your creativity: tutorials, tips, exclusive clips, or trending challenges.</li>
-                  <li>Promote your Pay2View link on social media to reach more viewers and maximize earnings.</li>
-                </ul>
+      <div class="creator-hub">
+        🎉 <b>What’s new?</b>
+        <ul>
+          <li>Share <b>all your uploaded content at once</b> with your audience — no need to share files individually.</li>
+          <li>Include your <b>social media links</b> so fans can follow you on Instagram, TikTok, Twitter/X, Facebook, and Snapchat.</li>
+          <li>Your <b>bio and profile info</b> are automatically displayed, making it easier for viewers to know you and support your work.</li>
+        </ul>
+        <p>See your hub and start sharing: <a href="https://www.pay2view.io/creator/{{username}}">View My Creator Hub</a></p>
+      </div>
 
-                <p style="margin-top:20px; font-size:15px;">
-                  Ready to make money? Start uploading your first video now and see your earnings grow!
-                </p>
+      <p>Creators are already earning <span class="highlight-earn">#50,000, #100,000, even #500,000+</span> weekly by sharing content through Pay2View. Don’t miss out — update your bio and social media links in your profile and start sharing via Creator Hub today!</p>
 
-                <p style="margin-top:10px; font-size:15px;">
-                  🚀 Happy creating and earning with Pay2View!
-                </p>
+      <a href="https://www.pay2view.io/dashboard" class="cta">Go to Dashboard & Update Profile</a>
 
-              </td>
-            </tr>
-            
-            <!-- Call-to-Action Button -->
-            <tr>
-              <td align="center" style="padding:20px;">
-                <a href="{{upload_link}}" style="background-color:#000; color:#fff; text-decoration:none; padding:12px 25px; border-radius:8px; font-weight:bold; display:inline-block;">
-                  Upload Your Video Now
-                </a>
-              </td>
-            </tr>
-
-            <!-- Footer -->
-            <tr>
-              <td align="center" bgcolor="#f5f5f5" style="color:#888888; font-size:12px; padding:15px;">
-                &copy;  Pay2View. All rights reserved.
-              </td>
-            </tr>
-
-          </table>
-        </td>
-      </tr>
-    </table>
+      <footer>
+        Pay2View Team<br>
+        <a href="mailto:hello@pay2view.io">hello@pay2view.io</a> | 
+        <a href="https://www.pay2view.io" target="_blank">www.pay2view.io</a>
+      </footer>
+    </div>
   </body>
 </html>

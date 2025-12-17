@@ -190,21 +190,20 @@ async function signupAlert(name, email,) {
 
 
 
-async function Test(name,email,upload_link) {
+async function Test(username,email) {
   const transporter = await createTransporter();
 
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
-    subject: 'How to Make Money on Pay2View 💸 ',
+    subject: 'Introducing Creator Hub 🚀 ',
     template: "marketing", // template name without extension
 
     context: {
       
-      name,
+      username,
       email,
-      upload_link
-    
+     
     },
   };
 

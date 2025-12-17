@@ -402,6 +402,7 @@ const uploadContent = asyncHandler(async (req, res) => {
     // ---------- UPLOAD FILE ----------
     let fullUrl;
     let previewUrl;
+    let  cf_image_id
 
     if (type === "pdf") {
       const key = `pdfs/${Date.now()}-${originalname}`;
@@ -470,6 +471,7 @@ const uploadContent = asyncHandler(async (req, res) => {
 
       fullUrl = encrypt(fullRes.variants[0]);
       previewUrl = previewRes.variants[0];
+      cf_image_id = fullRes.id;
     }
 
     // ---------- SAVE TO DB ----------
@@ -484,7 +486,8 @@ const uploadContent = asyncHandler(async (req, res) => {
       full_url: fullUrl,
       preview_url: previewUrl,
       price: Math.round(parseFloat(price) || 0),
-      type, // ✅ save type
+      type, // ✅ save type,
+      cf_image_id,
     });
 
     content.shareLink = `${frontendURL}/view-content/${encodeURIComponent(title)}/${content._id}`;
@@ -897,13 +900,19 @@ const deleteContent = async (req, res) => {
     return res.status(404).json({ error: "Content not found." });
   }
 
+
+
   // ---------- Delete Cloudflare Image ----------
   try {
     if (content.cf_image_id) {
+
+
       await axios.delete(
         `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ID}/images/v1/${content.cf_image_id}`,
         { headers: { Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}` } }
-      );
+      )
+
+
     }
   } catch (err) {
     console.warn("Failed to delete Cloudflare Image:", err.message);
@@ -922,6 +931,7 @@ const deleteContent = async (req, res) => {
         })
       );
     }
+ 
   } catch (err) {
     console.warn("Failed to delete PDF from R2:", err.message);
   }
@@ -1315,13 +1325,14 @@ const sendMarketingEmail = async () => {
 
     for (const user of users) {
       try {
-        const upload_link = 'https://www.pay2view.io/upload-content';
-        await Test(user.username, user.email, upload_link); // send email
+       
+        await Test(user.username, user.email); // send email
         totalSent++;
       } catch (err) {
         console.error(`Failed to send to ${user.email}:`, err.message);
       }
     }
+
 
     console.log("Total emails sent:", totalSent);
   } catch (error) {
@@ -1329,7 +1340,7 @@ const sendMarketingEmail = async () => {
   }
 };
 
-// sendMarketingEmail()
+
 
 async function confirmPayment(email) {
   const user = await User.findOne({ email: email });
