@@ -19,7 +19,7 @@ const {
   getWithdrawalHistory,
    updateUserProfile,
    deleteUserAccount,
-   getVideoSnippet,
+
    contact,
    checkVideoStatus,
    getUserByUsername,
@@ -65,7 +65,7 @@ router.delete("/api/delete-user-account/:userId", protect,deleteUserAccount);
 
 router.post("/api/contact",contact);
 
-router.get("/api/video-snippet/:id",getVideoSnippet);
+
 router.post("/api/check-video-status", checkVideoStatus);
 router.get("/api/get-user-by-username/:username", getUserByUsername);
 router.get("/api/check-username-availability",protect, checkUsernameAvailability);

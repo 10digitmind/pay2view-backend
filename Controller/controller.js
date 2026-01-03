@@ -72,8 +72,6 @@ async function getPdfSignedUrl(bucket, key) {
 
   try {
     // 1️⃣ Get video metadata
-
-    
     // 2️⃣ Call Clip API
     const clipRes = await axios.post(
       `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ID}/stream/clip`,
@@ -538,13 +536,12 @@ const getUserContents = asyncHandler(async (req, res) => {
       return res.status(404).json({ message: "No content found for this user" });
     }
 
-  
-    // Loop through contents to decrypt URLs and fetch duration if needed
+    // Loop through contents to decrypt URLs, fetch duration, and generate snippets if needed
     const processedContents = await Promise.all(
       contents.map(async (content) => {
         let fullUrl = content.full_url;
 
-        // Decrypt image/video URLs if needed
+        // 1️⃣ Decrypt URLs if needed
         if (
           (content.title && content.title.endsWith("-image")) ||
           (content.preview_url && content.preview_url.includes("videodelivery.net"))
@@ -556,10 +553,10 @@ const getUserContents = asyncHandler(async (req, res) => {
           }
         }
 
-        // Fetch duration only if preview exists and videoDuration is missing
+        // 2️⃣ Fetch video duration if missing
         if (content.preview_url?.includes("videodelivery.net") && !content.videoDuration) {
           try {
-            const uid = decrypt(content.full_url); // your decrypt function
+            const uid = decrypt(content.full_url);
             const response = await axios.get(
               `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ID}/stream/${uid}`,
               {
@@ -572,6 +569,22 @@ const getUserContents = asyncHandler(async (req, res) => {
             await content.save();
           } catch (err) {
             console.error(`Failed to fetch duration for content ID ${content._id}:`, err.message);
+          }
+        }
+
+
+
+        // 3️⃣ Generate snippet for unpaid content if snippet not already saved
+        if (!content.isPaid && !content.snippetURL && content.preview_url?.includes("videodelivery.net")) {
+          try {
+
+            const { snippetURL, snippetURL_uid } = await generateSnippetURL(fullUrl);
+            content.snippetURL = snippetURL;
+            content.snippetURL_uid = snippetURL_uid;
+         
+            await content.save();
+          } catch (err) {
+            console.error(`Failed to generate snippet for content ID ${content._id}:`, err.message);
           }
         }
 
@@ -588,6 +601,7 @@ const getUserContents = asyncHandler(async (req, res) => {
     res.status(500).json({ message: "Server error while fetching contents" });
   }
 });
+
 
 
 // get content by id 
@@ -623,6 +637,7 @@ const getContentById = asyncHandler(async (req, res) => {
         preview_url: content.preview_url,
         price: content.price,
         videoUrl:videoURL, 
+        snippetURL:content.snippetURL,
         videoDuration:content.videoDuration// UID for preview player
       },
     });
@@ -1318,27 +1333,23 @@ function delay(ms) {
 
 const sendMarketingEmail = async () => {
   try {
-    // Get all users with verified emails
     const users = await User.find({ emailVerified: true });
 
-    let totalSent = 0;
-
-    for (const user of users) {
-      try {
-       
-        await Test(user.username, user.email); // send email
-        totalSent++;
-      } catch (err) {
+    // Map all emails to promises
+    const emailPromises = users.map(user => 
+      Test(user.username, user.email).catch(err => {
         console.error(`Failed to send to ${user.email}:`, err.message);
-      }
-    }
+      })
+    );
 
+    await Promise.all(emailPromises); // Send in parallel
 
-    console.log("Total emails sent:", totalSent);
+    console.log(`Total emails attempted: ${users.length}`);
   } catch (error) {
     console.error("Error in sendMarketingEmail:", error);
   }
 };
+
 
 
 
@@ -1386,59 +1397,10 @@ async function confirmPayment(email) {
   );
 }
 
-const getVideoSnippet = asyncHandler(async (req, res) => {
-  const { id } = req.params;
 
-  const content = await Content.findById(id);
-  if (!content) return res.status(404).json({ error: "Content not found" });
 
-  const videoUID = decrypt(content.full_url);
 
-  // ============================
-  // PAID USER → give full video
-  // ============================
-  if (content.isPaid) {
-    return res.json({
-      success: true,
-      unlocked: true,
-      videoURL: `https://videodelivery.net/${videoUID}/manifest/video.m3u8`,
-    });
-  }
 
-  // ==================================================
-  // UNPAID USER → only return snippet (generate once)
-  // ==================================================
-
-  // 1️⃣ If snippet already exists → return it
-  if (content.snippetURL) {
-    return res.json({
-      success: true,
-      unlocked: false,
-      snippetURL: content.snippetURL,
-      duration: 5,
-    });
-  }
-
-  // 2️⃣ Generate snippet (5 sec fixed)
-  try {
-    const {snippetURL,snippetURL_uid} = await generateSnippetURL(videoUID);
-
-    content.snippetURL = snippetURL;
-    content.snippetURL_uid= snippetURL_uid
-    await content.save();
-
-    return res.json({
-      success: true,
-      unlocked: false,
-      snippetURL,
-      duration: 5,
-    });
-
-  } catch (err) {
-    console.error("Snippet generation failed:", err);
-    return res.status(500).json({ error: "Failed to generate snippet" });
-  }
-});
 
 
 
@@ -1706,7 +1668,6 @@ module.exports = {
   updateUserProfile,
   deleteUserAccount,
   contact,
-  getVideoSnippet,
   checkVideoStatus,
   getUserByUsername,
   checkUsernameAvailability

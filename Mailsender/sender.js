@@ -196,7 +196,7 @@ async function Test(username,email) {
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
-    subject: 'Introducing Creator Hub 🚀 ',
+    subject: 'Happy New year  🚀 ',
     template: "marketing", // template name without extension
 
     context: {
@@ -209,7 +209,7 @@ async function Test(username,email) {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`Marketing email sent  `);
+    console.log(`Marketing email sent  ${email}`);
   } catch (err) {
     console.error("Error sending email:", err);
   }

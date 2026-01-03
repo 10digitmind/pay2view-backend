@@ -1,105 +1,144 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="UTF-8">
-    <title>New: Creator Hub on Pay2View!</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        background-color: #f9f9f9;
-        color: #333;
-        margin: 0;
-        padding: 0;
-      }
-      .container {
-        max-width: 600px;
-        margin: 30px auto;
-        background: #fff;
-        padding: 25px;
-        border-radius: 10px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-      }
-      h2 {
-        color: #000000;
-        text-align: center;
-      }
-      p {
-        font-size: 15px;
-        line-height: 1.6;
-      }
-      ul {
-        padding-left: 20px;
-      }
-      .cta {
-        display: block;
-        text-align: center;
-        background: #000000;
-        color: #ffffff;
-        text-decoration: none;
-        padding: 12px 20px;
-        border-radius: 6px;
-        font-weight: bold;
-        margin: 20px auto;
-        width: fit-content;
-      }
-      .cta:hover {
-        background: #000000;
-      }
-      .highlight {
-        color: #2b7cff;
-        font-weight: bold;
-      }
-      .highlight-earn {
-        color: #28a745;
-        font-weight: bold;
-      }
-      .creator-hub {
-        background: #f0f6ff;
-        border-left: 4px solid #2b7cff;
-        padding: 15px;
-        margin: 20px 0;
-        border-radius: 6px;
-        font-size: 14px;
-      }
-      footer {
-        text-align: center;
-        font-size: 12px;
-        color: #777;
-        margin-top: 30px;
-        border-top: 1px solid #eee;
-        padding-top: 10px;
-      }
-      a.unsubscribe {
-        color: #777;
-        text-decoration: underline;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <h2>Introducing Creator Hub 🚀</h2>
-      <p>Hello {{username}},</p>
-      <p>We’re excited to announce <span class="highlight">Creator Hub</span> — a brand-new feature on Pay2View that makes sharing your content easier than ever!</p>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Happy New Year from Pay2View</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
 
-      <div class="creator-hub">
-        🎉 <b>What’s new?</b>
-        <ul>
-          <li>Share <b>all your uploaded content at once</b> with your audience — no need to share files individually.</li>
-          <li>Include your <b>social media links</b> so fans can follow you on Instagram, TikTok, Twitter/X, Facebook, and Snapchat.</li>
-          <li>Your <b>bio and profile info</b> are automatically displayed, making it easier for viewers to know you and support your work.</li>
-        </ul>
-        <p>See your hub and start sharing: <a href="https://www.pay2view.io/creator/{{username}}">View My Creator Hub</a></p>
-      </div>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(135deg, #020617, #020617);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
 
-      <p>Creators are already earning <span class="highlight-earn">#50,000, #100,000, even #500,000+</span> weekly by sharing content through Pay2View. Don’t miss out — update your bio and social media links in your profile and start sharing via Creator Hub today!</p>
+    .ad-container {
+      max-width: 420px;
+      width: 90%;
+      background: linear-gradient(180deg, #ffffff, #f8fafc);
+      padding: 28px 24px;
+      border-radius: 18px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
 
-      <a href="https://www.pay2view.io/dashboard" class="cta">Go to Dashboard & Update Profile</a>
+    .ad-container::before {
+      content: "";
+      position: absolute;
+      top: -60px;
+      right: -60px;
+      width: 140px;
+      height: 140px;
+      background: radial-gradient(circle, #22c55e, transparent 70%);
+      opacity: 0.15;
+    }
 
-      <footer>
-        Pay2View Team<br>
-        <a href="mailto:hello@pay2view.io">hello@pay2view.io</a> | 
-        <a href="https://www.pay2view.io" target="_blank">www.pay2view.io</a>
-      </footer>
+    h2 {
+      margin: 0 0 12px;
+      font-size: 22px;
+      color: #020617;
+      font-weight: 700;
+    }
+
+    p {
+      font-size: 15px;
+      line-height: 1.6;
+      color: #334155;
+      margin: 12px 0;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 20px 0;
+      text-align: left;
+    }
+
+    ul li {
+      font-size: 14px;
+      color: #020617;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      background: #f1f5f9;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    ul li::before {
+      content: "✓";
+      color: #22c55e;
+      font-weight: bold;
+    }
+
+    .cta {
+      display: inline-block;
+      margin-top: 18px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #020617;
+      text-decoration: none;
+      padding: 13px 26px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 14px;
+      box-shadow: 0 8px 20px rgba(34, 197, 94, 0.35);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .cta:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(34, 197, 94, 0.45);
+    }
+
+    .footer-note {
+      margin-top: 16px;
+      font-size: 12px;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <div class="ad-container">
+
+    <h2>Hello {{username }}</h2>
+    <h2>🎉 Happy New Year from Pay2View</h2>
+
+    <p>
+      Thank you for being part of Pay2View.
+      Last year, we successfully paid several customers,
+      and we truly appreciate the trust you placed in us.
+    </p>
+
+    <p>
+      As we move into the new year, our focus remains the same —
+      more opportunities, more transparency,
+      and more money made together.
+    </p>
+
+    <ul>
+      <li>Trusted platform</li>
+      <li>Real payouts</li>
+      <li>Growth in the new year</li>
+    </ul>
+
+    <a href="https://pay2view.com" class="cta" target="_blank">
+      Thank You for Your Support
+    </a>
+
+    <div class="footer-note">
+      Wishing you success and growth this year 🚀
+      All right reverseved pay2view 2026
     </div>
-  </body>
+  </div>
+</body>
 </html>
