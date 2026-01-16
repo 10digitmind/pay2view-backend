@@ -1024,7 +1024,7 @@ const forgotPassword = async (req, res) => {
 
   await sendPasswordResetEmail(userEmail, user.username, resetUrl);
 
-  res.json({ success: true, message: "Password reset email sent." });
+  res.json({ success: true, message: "Password reset email sent please check your inbox or spam ." });
 }
 
 // POST /api/reset-password
