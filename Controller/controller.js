@@ -1017,8 +1017,8 @@ const forgotPassword = async (req, res) => {
   await user.save();
 
   // Create reset URL
-  const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
-  const resetUrl = `${FRONTEND_URL}/reset-password/${resetToken}`;
+  const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
+  const resetUrl = `${CLIENT_URL}/reset-password/${resetToken}`;
 
  const userEmail = user.email
 
