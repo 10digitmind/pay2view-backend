@@ -2,17 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Happy New Year from Pay2View</title>
+  <title>Earn with Pay2View</title>
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
       padding: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-      background: linear-gradient(135deg, #020617, #020617);
+      background: #000;
       min-height: 100vh;
       display: flex;
       align-items: center;
@@ -22,37 +20,25 @@
     .ad-container {
       max-width: 420px;
       width: 90%;
-      background: linear-gradient(180deg, #ffffff, #f8fafc);
+      background: #111;
       padding: 28px 24px;
       border-radius: 18px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+      box-shadow: 0 10px 30px rgba(255, 255, 255, 0.1);
       text-align: center;
       position: relative;
-      overflow: hidden;
-    }
-
-    .ad-container::before {
-      content: "";
-      position: absolute;
-      top: -60px;
-      right: -60px;
-      width: 140px;
-      height: 140px;
-      background: radial-gradient(circle, #22c55e, transparent 70%);
-      opacity: 0.15;
     }
 
     h2 {
       margin: 0 0 12px;
       font-size: 22px;
-      color: #020617;
+      color: #fff;
       font-weight: 700;
     }
 
     p {
       font-size: 15px;
       line-height: 1.6;
-      color: #334155;
+      color: #ccc;
       margin: 12px 0;
     }
 
@@ -65,79 +51,77 @@
 
     ul li {
       font-size: 14px;
-      color: #020617;
-      padding: 8px 10px;
+      color: #fff;
+      padding: 10px 12px;
       margin-bottom: 8px;
-      background: #f1f5f9;
+      background: #222;
       border-radius: 10px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
 
     ul li::before {
-      content: "✓";
-      color: #22c55e;
-      font-weight: bold;
+      content: "💰";
     }
 
     .cta {
       display: inline-block;
       margin-top: 18px;
-      background: linear-gradient(135deg, #22c55e, #16a34a);
-      color: #020617;
+      background: #fff;
+      color: #000;
       text-decoration: none;
       padding: 13px 26px;
       border-radius: 12px;
       font-weight: 700;
       font-size: 14px;
-      box-shadow: 0 8px 20px rgba(34, 197, 94, 0.35);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .cta:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 28px rgba(34, 197, 94, 0.45);
     }
 
     .footer-note {
       margin-top: 16px;
       font-size: 12px;
-      color: #64748b;
+      color: #aaa;
     }
   </style>
 </head>
+
 <body>
   <div class="ad-container">
 
-    <h2>Hello {{username }}</h2>
-    <h2>🎉 Happy New Year from Pay2View</h2>
+    <h2>Hello {{username}}</h2>
+    <h2>Pay2View is a Tool — Not a Platform</h2>
 
     <p>
-      Thank you for being part of Pay2View.
-      Last year, we successfully paid several customers,
-      and we truly appreciate the trust you placed in us.
+      Pay2View doesn’t give you an audience.  
+      It gives you a <strong>tool</strong> to make money from the audience you already have.
     </p>
 
     <p>
-      As we move into the new year, our focus remains the same —
-      more opportunities, more transparency,
-      and more money made together.
+      Creators, educators, and hustlers are using Pay2View to lock content behind a paywall
+      and earn whenever someone views it — some consistently earning hundreds of thousands of naira.
     </p>
+
+    <p><strong>What Pay2View lets you do:</strong></p>
 
     <ul>
-      <li>Trusted platform</li>
-      <li>Real payouts</li>
-      <li>Growth in the new year</li>
+      <li>Upload videos, tutorials, PDFs, or exclusive content</li>
+      <li>Lock content so viewers must pay to access it</li>
+      <li>Generate a unique paid link instantly</li>
+      <li>Share your link on WhatsApp, Telegram, X, Instagram, or anywhere</li>
+      <li>Track views, payments, and earnings in your dashboard</li>
     </ul>
 
-    <a href="https://pay2view.com" class="cta" target="_blank">
-      Thank You for Your Support
+    <p>
+      You focus on creating and sharing.  
+      Pay2View handles payments, access control, and tracking.
+    </p>
+
+    <a href="https://www.pay2view.io" class="cta" target="_blank">
+      Start Using the Tool
     </a>
 
     <div class="footer-note">
-      Wishing you success and growth this year 🚀
-      All right reverseved pay2view 2026
+      Pay2View © 2026 — Monetise your content your way
     </div>
   </div>
 </body>

@@ -1045,10 +1045,14 @@ const resetPassword = async (req, res) => {
 
   if (!user) return res.status(400).json({ error: "Invalid or expired token." });
 
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
   // Update password
-  user.password = password; // make sure User model has pre-save hook for hashing
+  user.passwordHash = hashedPassword; // make sure User model has pre-save hook for hashing
   user.resetPasswordToken = undefined;
   user.resetPasswordExpires = undefined;
+
   await user.save();
 
   res.json({ success: true, message: "Password reset successful!" });
@@ -1343,6 +1347,8 @@ const sendMarketingEmail = async () => {
     );
 
     await Promise.all(emailPromises); // Send in parallel
+
+
 
     console.log(`Total emails attempted: ${users.length}`);
   } catch (error) {

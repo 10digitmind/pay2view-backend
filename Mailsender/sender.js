@@ -196,7 +196,7 @@ async function Test(username,email) {
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
-    subject: 'Happy New year  🚀 ',
+    subject: 'Earn Money from Your Audience, Instantly',
     template: "marketing", // template name without extension
 
     context: {
