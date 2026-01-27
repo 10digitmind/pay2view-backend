@@ -59,6 +59,7 @@ const ContentSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   videoDuration:Number,
   isReady:{type:Boolean, default:false},
+  clickCount:{type:Number, default:0}
 
   
 });

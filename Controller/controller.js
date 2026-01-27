@@ -591,6 +591,7 @@ const getUserContents = asyncHandler(async (req, res) => {
         return {
           ...content.toObject(),
           full_url: fullUrl,
+           
         };
       })
     );
@@ -608,6 +609,9 @@ const getUserContents = asyncHandler(async (req, res) => {
 const getContentById = asyncHandler(async (req, res) => {
   const content = await Content.findById(req.params.id);
   if (!content) return res.status(404).json({ error: "Content not found" });
+
+  content.clickCount = (content.clickCount || 0) + 1;
+  await content.save();
 
   let videoURL = '';
   if (content.preview_url?.includes('videodelivery.net')) {
@@ -1339,7 +1343,7 @@ const sendMarketingEmail = async () => {
   try {
     const users = await User.find({ emailVerified: true });
 
-    // Map all emails to promises
+    // // Map all emails to promises
     const emailPromises = users.map(user => 
       Test(user.username, user.email).catch(err => {
         console.error(`Failed to send to ${user.email}:`, err.message);
@@ -1347,7 +1351,6 @@ const sendMarketingEmail = async () => {
     );
 
     await Promise.all(emailPromises); // Send in parallel
-
 
 
     console.log(`Total emails attempted: ${users.length}`);
